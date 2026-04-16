@@ -1,4 +1,3 @@
-const MOCK_MODE = process.env.MOCK_MODE === "true";
 import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
@@ -8,6 +7,8 @@ import { google } from "googleapis";
 
 dotenv.config();
 
+const MOCK_MODE = process.env.MOCK_MODE === "true";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,7 +16,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
-const FRONTEND_FILE = process.env.FRONTEND_FILE || "frontend-index.html";
+const FRONTEND_FILE = process.env.FRONTEND_FILE || "Dogma-booking-redesign.html";
 
 app.use(cors());
 app.use(express.json());
@@ -28,45 +29,11 @@ const requiredEnv = [
   "GOOGLE_REFRESH_TOKEN"
 ];
 
-const missingEnv = requiredEnv.filter((key) => !process.env[key]);
-if (missingEnv.length > 0) {
-  console.error("Missing required env variables:", missingEnv.join(", "));
-}
-
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-});
-
-const calendar = google.calendar({
-  version: "v3",
-  auth: oauth2Client
-});
-
-const BARBERS = [
-  {
-    id: "andrzej",
-    name: "Andrzej"
-  },
-  {
-    id: "michal",
-    name: "Michał"
-  },
-  {
-    id: "alex",
-    name: "Alex"
+if (!MOCK_MODE) {
+  const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+  if (missingEnv.length > 0) {
+    console.error("Missing required env variables:", missingEnv.join(", "));
   }
-];
-
-
-
-const missingEnv = requiredEnv.filter((key) => !process.env[key]);
-if (missingEnv.length > 0) {
-  console.error("Missing required env variables:", missingEnv.join(", "));
 }
 
 const oauth2Client = new google.auth.OAuth2(
@@ -141,12 +108,8 @@ function minutesToTime(totalMinutes) {
 }
 
 function getWarsawOffset(date) {
-  const year = Number(date.slice(0, 4));
   const month = Number(date.slice(5, 7));
-
-  return month >= 4 && month <= 10
-    ? "+02:00"
-    : "+01:00";
+  return month >= 4 && month <= 10 ? "+02:00" : "+01:00";
 }
 
 function combineDateAndTime(date, time) {
@@ -183,7 +146,9 @@ function normalizeString(value = "") {
 }
 
 function findServiceByName(serviceName) {
-  return SERVICES.find((service) => normalizeString(service.name) === normalizeString(serviceName)) || null;
+  return SERVICES.find(
+    (service) => normalizeString(service.name) === normalizeString(serviceName)
+  ) || null;
 }
 
 function findBarber({ barberId = "", barberName = "" }) {
@@ -213,11 +178,11 @@ function getDateStringFromOffset(daysToAdd) {
   return `${year}-${month}-${day}`;
 }
 
-
 async function getBusyEvents(date, barberId = "", barberName = "") {
-   if (process.env.MOCK_MODE === "true") {
+  if (MOCK_MODE) {
     return [];
   }
+
   const offset = getWarsawOffset(date);
   const timeMin = new Date(`${date}T00:00:00${offset}`).toISOString();
   const timeMax = new Date(`${date}T23:59:59${offset}`).toISOString();
@@ -264,17 +229,16 @@ async function getBusyEvents(date, barberId = "", barberName = "") {
 }
 
 async function getAvailableSlots(date, duration, barberId = "", barberName = "") {
-    if (process.env.MOCK_MODE === "true") {
+  if (MOCK_MODE) {
     const startMinutes = parseTimeToMinutes(WORKING_HOURS.start);
     const endMinutes = parseTimeToMinutes(WORKING_HOURS.end);
     const step = WORKING_HOURS.slotStepMinutes;
-
     const availableSlots = [];
 
     for (let current = startMinutes; current + duration <= endMinutes; current += step) {
       const slotTime = minutesToTime(current);
-
       const blockedSlots = ["12:00", "13:30", "15:00"];
+
       if (!blockedSlots.includes(slotTime)) {
         availableSlots.push(slotTime);
       }
@@ -282,6 +246,7 @@ async function getAvailableSlots(date, duration, barberId = "", barberName = "")
 
     return availableSlots;
   }
+
   const busyEvents = await getBusyEvents(date, barberId, barberName);
 
   const startMinutes = parseTimeToMinutes(WORKING_HOURS.start);
@@ -403,7 +368,7 @@ app.get("/api/availability/slots", async (req, res) => {
 });
 
 app.post("/api/bookings", async (req, res) => {
-   if (process.env.MOCK_MODE === "true") {
+  if (MOCK_MODE) {
     console.log("MOCK BOOKING:", req.body);
 
     return res.status(200).json({
@@ -413,6 +378,7 @@ app.post("/api/bookings", async (req, res) => {
       eventLink: null
     });
   }
+
   try {
     const {
       name,
@@ -479,7 +445,12 @@ app.post("/api/bookings", async (req, res) => {
     const finalBarberId = matchedBarber?.id || "";
     const finalBarberName = matchedBarber?.name || "Losowy";
 
-    const freshSlots = await getAvailableSlots(date, numericDuration, finalBarberId, finalBarberName === "Losowy" ? "" : finalBarberName);
+    const freshSlots = await getAvailableSlots(
+      date,
+      numericDuration,
+      finalBarberId,
+      finalBarberName === "Losowy" ? "" : finalBarberName
+    );
 
     if (!freshSlots.includes(time)) {
       return res.status(409).json({
@@ -551,4 +522,3 @@ app.post("/api/bookings", async (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`DOGMA backend started on port ${PORT}`);
 });
-
