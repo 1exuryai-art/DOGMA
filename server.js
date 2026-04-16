@@ -432,6 +432,16 @@ app.get("/api/availability/slots", async (req, res) => {
 });
 
 app.post("/api/bookings", async (req, res) => {
+   if (process.env.MOCK_MODE === "true") {
+    console.log("MOCK BOOKING:", req.body);
+
+    return res.status(200).json({
+      ok: true,
+      message: "Mock booking saved",
+      eventId: "mock-event-id",
+      eventLink: null
+    });
+  }
   try {
     const {
       name,
