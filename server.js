@@ -62,34 +62,7 @@ const BARBERS = [
   }
 ];
 
-import path from "path";
-import { fileURLToPath } from "url";
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import { google } from "googleapis";
 
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
-const FRONTEND_FILE = process.env.FRONTEND_FILE || "frontend-index.html";
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
-
-const requiredEnv = [
-  "GOOGLE_CLIENT_ID",
-  "GOOGLE_CLIENT_SECRET",
-  "GOOGLE_REFRESH_TOKEN"
-];
 
 const missingEnv = requiredEnv.filter((key) => !process.env[key]);
 if (missingEnv.length > 0) {
