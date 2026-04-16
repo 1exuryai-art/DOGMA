@@ -1,3 +1,4 @@
+const MOCK_MODE = process.env.MOCK_MODE === "true";
 import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
