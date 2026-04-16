@@ -242,7 +242,11 @@ function getDateStringFromOffset(daysToAdd) {
   return `${year}-${month}-${day}`;
 }
 
+
 async function getBusyEvents(date, barberId = "", barberName = "") {
+   if (process.env.MOCK_MODE === "true") {
+    return [];
+  }
   const offset = getWarsawOffset(date);
   const timeMin = new Date(`${date}T00:00:00${offset}`).toISOString();
   const timeMax = new Date(`${date}T23:59:59${offset}`).toISOString();
@@ -289,6 +293,24 @@ async function getBusyEvents(date, barberId = "", barberName = "") {
 }
 
 async function getAvailableSlots(date, duration, barberId = "", barberName = "") {
+    if (process.env.MOCK_MODE === "true") {
+    const startMinutes = parseTimeToMinutes(WORKING_HOURS.start);
+    const endMinutes = parseTimeToMinutes(WORKING_HOURS.end);
+    const step = WORKING_HOURS.slotStepMinutes;
+
+    const availableSlots = [];
+
+    for (let current = startMinutes; current + duration <= endMinutes; current += step) {
+      const slotTime = minutesToTime(current);
+
+      const blockedSlots = ["12:00", "13:30", "15:00"];
+      if (!blockedSlots.includes(slotTime)) {
+        availableSlots.push(slotTime);
+      }
+    }
+
+    return availableSlots;
+  }
   const busyEvents = await getBusyEvents(date, barberId, barberName);
 
   const startMinutes = parseTimeToMinutes(WORKING_HOURS.start);
