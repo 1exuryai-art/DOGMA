@@ -187,18 +187,21 @@ const barbers = [
   {
     id: "tymur",
     name: "Tymur",
+    photo: "./tymur.png",
     description: "Młody i ambitny barber z pasją do klasycznych strzyżeń.",
     languages: ["🇺🇦 Ukraiński", "🇵🇱 Polski", "🇬🇧 English"]
   },
   {
     id: "dima",
     name: "Dima",
+    photo: "./dima.png",
     description: "Doświadczony barber z 3-letnim stażem. Mistrz klasyki i nowoczesnych stylów.",
     languages: ["🇺🇦 Ukraiński", "🇵🇱 Polski", "🇬🇧 English"]
   },
   {
     id: "vlad",
     name: "Vlad",
+    photo: "./vlad.png",
     description: "Młody talent z energią i świeżym podejściem do strzyżeń.",
     languages: ["🇺🇦 Ukraiński", "🇷🇺 Rosyjski", "🇵🇱 Polski"]
   }
