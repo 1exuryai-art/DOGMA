@@ -279,6 +279,7 @@ function getSelectedBarber() {
 
 function formatDateText(dateStr) {
   if (!dateStr) return "—";
+
   const date = new Date(`${dateStr}T00:00:00`);
   return new Intl.DateTimeFormat("pl-PL", {
     day: "2-digit",
@@ -289,13 +290,18 @@ function formatDateText(dateStr) {
 
 function normalizePhone(value) {
   let digits = String(value || "").replace(/\D/g, "");
-  if (digits.startsWith("48")) digits = digits.slice(2);
+
+  if (digits.startsWith("48")) {
+    digits = digits.slice(2);
+  }
+
   digits = digits.slice(0, 9);
 
   let result = "+48";
   if (digits.length > 0) result += ` ${digits.slice(0, 3)}`;
   if (digits.length > 3) result += ` ${digits.slice(3, 6)}`;
   if (digits.length > 6) result += ` ${digits.slice(6, 9)}`;
+
   return result;
 }
 
@@ -346,6 +352,7 @@ function updateBindings() {
 
 function updateHeader() {
   const meta = stepMeta[state.step - 1];
+
   stepTitle.textContent = meta.title;
   stepSubtitle.textContent = meta.subtitle;
   stepPill.textContent = `${state.step} / ${TOTAL_STEPS}`;
@@ -356,48 +363,47 @@ function updateHeader() {
 }
 
 function updateNav() {
+  if (state.step === 8) {
+    backBtn.classList.add("hidden");
+    nextBtn.classList.add("hidden");
+    return;
+  }
+
+  backBtn.classList.remove("hidden");
+  nextBtn.classList.remove("hidden");
+
   backBtn.style.visibility = state.step === 1 ? "hidden" : "visible";
 
-  // ❗ STEP 2 — УБИРАЕМ НИЖНЮЮ КНОПКУ
   if (state.step === 2) {
     nextBtn.classList.add("hidden");
     return;
   }
 
+  nextBtn.classList.remove("hidden");
+  nextBtn.classList.remove("pulse");
+
   if (state.step === 7) {
     nextBtn.textContent = state.submitting ? "Zapisywanie..." : "Zarezerwuj termin";
-  } else if (state.step === 8) {
-    nextBtn.classList.add("hidden");
-    backBtn.classList.add("hidden");
-    return;
   } else {
     nextBtn.textContent = "Dalej";
   }
 
-  nextBtn.classList.remove("hidden");
-  backBtn.classList.remove("hidden");
-  nextBtn.classList.remove("pulse");
-
   if (state.step === 1) {
     nextBtn.disabled = !(isValidName(state.name) && isValidPhone(state.phone));
-  } 
-  else if (state.step === 2) {
-    nextBtn.disabled = true; // 🔒 не используется вообще
-  } 
-  else if (state.step === 3) {
+  } else if (state.step === 3) {
     nextBtn.disabled = !state.barberDecision;
-  } 
-  else if (state.step === 4) {
+  } else if (state.step === 4) {
+    nextBtn.disabled = !state.selectedBarberId;
+  } else if (state.step === 5) {
     nextBtn.disabled = !state.selectedDate;
-  } 
-  else if (state.step === 5) {
+  } else if (state.step === 6) {
     nextBtn.disabled = !state.selectedTime;
-  } 
-  else if (state.step === 6) {
+  } else if (state.step === 7) {
+    nextBtn.disabled = state.submitting;
+  } else {
     nextBtn.disabled = false;
   }
 
-  // 🔥 Пульс только где нужно
   if (state.step === 7 && !state.submitting) {
     nextBtn.classList.add("pulse");
   }
@@ -411,9 +417,13 @@ function showStep(step) {
   });
 
   updateHeader();
-  updateNav();
   updateBindings();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  updateNav();
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
 }
 
 function renderServiceAccordion() {
@@ -422,6 +432,7 @@ function renderServiceAccordion() {
   serviceCategories.forEach((category) => {
     const item = document.createElement("div");
     const isOpen = state.selectedCategory === category.id;
+
     item.className = `accordion-item ${isOpen ? "open" : ""}`;
 
     const trigger = document.createElement("button");
@@ -478,11 +489,17 @@ function renderServiceAccordion() {
 
         state.selectedCategory = category.id;
         state.selectedServiceId = service.id;
+        state.barberDecision = "";
+        state.selectedBarberId = "";
         state.selectedDate = "";
         state.selectedTime = "";
         state.calendarMonthOffset = 0;
 
         renderServiceAccordion();
+        renderBarberDecision();
+        renderBarberSlider();
+        renderCalendar();
+        renderSlots();
         updateBindings();
         updateNav();
 
@@ -502,8 +519,61 @@ function renderServiceAccordion() {
   });
 }
 
+function renderBarberDecision() {
+  if (!barberSkipBox) return;
+
+  const showSkip = state.barberDecision === "no";
+  barberSkipBox.classList.toggle("hidden", !showSkip);
+
+  if (chooseBarberYes) {
+    chooseBarberYes.classList.toggle("active", state.barberDecision === "yes");
+  }
+
+  if (chooseBarberNo) {
+    chooseBarberNo.classList.toggle("active", state.barberDecision === "no");
+  }
+}
+
+function renderBarberSlider() {
+  const barber = barbers[state.barberSlideIndex];
+  if (!barber) return;
+
+  if (barberSlidePhoto) {
+    barberSlidePhoto.textContent = barber.name;
+  }
+
+  if (barberSlideName) {
+    barberSlideName.textContent = barber.name;
+  }
+
+  if (barberSlideDescription) {
+    barberSlideDescription.textContent = barber.description;
+  }
+
+  if (barberSlideLangs) {
+    barberSlideLangs.innerHTML = "";
+    barber.languages.forEach((lang) => {
+      const tag = document.createElement("span");
+      tag.className = "barber-lang";
+      tag.textContent = lang;
+      barberSlideLangs.appendChild(tag);
+    });
+  }
+
+  if (barberCounter) {
+    barberCounter.textContent = `${state.barberSlideIndex + 1} / ${barbers.length}`;
+  }
+
+  if (selectBarberBtn) {
+    const isSelected = state.selectedBarberId === barber.id;
+    selectBarberBtn.textContent = isSelected ? "Barber wybrany" : "Wybierz tego barbera";
+    selectBarberBtn.classList.toggle("selected", isSelected);
+  }
+}
+
 function generateAvailability() {
   const today = new Date();
+
   state.availableDates = [];
   state.slotsByDate = {};
 
@@ -532,7 +602,7 @@ function generateAvailability() {
 
       state.slotsByDate[iso] = baseSlots.map((time, index) => ({
         time,
-        available: ((index + i) % 4 !== 0)
+        available: (index + i) % 4 !== 0
       }));
     }
   }
@@ -543,10 +613,13 @@ function getMonthName(monthIndex) {
     "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
     "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"
   ];
+
   return months[monthIndex];
 }
 
 function renderCalendar() {
+  if (!calendarGrid) return;
+
   calendarGrid.innerHTML = "";
   dateError.textContent = "";
 
@@ -555,7 +628,12 @@ function renderCalendar() {
   }
 
   const today = new Date();
-  const currentMonthDate = new Date(today.getFullYear(), today.getMonth() + state.calendarMonthOffset, 1);
+  const currentMonthDate = new Date(
+    today.getFullYear(),
+    today.getMonth() + state.calendarMonthOffset,
+    1
+  );
+
   const currentYear = currentMonthDate.getFullYear();
   const currentMonth = currentMonthDate.getMonth();
 
@@ -568,6 +646,7 @@ function renderCalendar() {
 
   const firstDay = new Date(currentYear, currentMonth, 1);
   let firstWeekday = firstDay.getDay();
+
   if (firstWeekday === 0) firstWeekday = 7;
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -645,6 +724,8 @@ function renderCalendar() {
 }
 
 function renderSlots() {
+  if (!slotsGrid) return;
+
   slotsGrid.innerHTML = "";
   timeError.textContent = "";
 
@@ -655,6 +736,7 @@ function renderSlots() {
 
   const slots = state.slotsByDate[state.selectedDate] || [];
   const freeCount = slots.filter((slot) => slot.available).length;
+
   slotsStatus.textContent = `${freeCount} wolnych godzin`;
 
   slots.forEach((slot) => {
@@ -673,6 +755,8 @@ function renderSlots() {
     }
 
     btn.addEventListener("click", () => {
+      if (!slot.available) return;
+
       state.selectedTime = slot.time;
       renderSlots();
       updateBindings();
@@ -694,9 +778,9 @@ async function submitBooking() {
   const payload = {
     name: state.name,
     phone: state.phone,
-    serviceName: service.name,
-    serviceDuration: service.duration,
-    servicePrice: formatPrice(service.newPrice),
+    serviceName: service?.name || "",
+    serviceDuration: service?.duration || "",
+    servicePrice: service ? formatPrice(service.newPrice) : "",
     barberName: barber?.name || "Bez wyboru",
     date: state.selectedDate,
     time: state.selectedTime
@@ -735,6 +819,7 @@ function nextStep() {
     phoneError.textContent = validPhone ? "" : "Podaj poprawny numer telefonu";
 
     if (!validName || !validPhone) return;
+
     showStep(2);
     return;
   }
@@ -769,6 +854,7 @@ function nextStep() {
       dateError.textContent = "Wybierz datę";
       return;
     }
+
     showStep(6);
     return;
   }
@@ -778,6 +864,7 @@ function nextStep() {
       timeError.textContent = "Wybierz godzinę";
       return;
     }
+
     showStep(7);
     return;
   }
@@ -788,13 +875,19 @@ function nextStep() {
 }
 
 function prevStep() {
-  if (state.step > 1) {
-    showStep(state.step - 1);
+  if (state.step <= 1) return;
+
+  if (state.step === 5 && state.barberDecision === "no") {
+    showStep(3);
+    return;
   }
+
+  showStep(state.step - 1);
 }
 
 nameInput.addEventListener("input", (e) => {
   state.name = e.target.value;
+  nameError.textContent = "";
   updateBindings();
   updateNav();
 });
@@ -803,6 +896,7 @@ phoneInput.value = state.phone;
 
 phoneInput.addEventListener("keydown", (e) => {
   const pos = phoneInput.selectionStart || 0;
+
   if ((e.key === "Backspace" || e.key === "Delete") && pos <= 4) {
     e.preventDefault();
   }
@@ -810,9 +904,14 @@ phoneInput.addEventListener("keydown", (e) => {
 
 phoneInput.addEventListener("input", (e) => {
   let formatted = normalizePhone(e.target.value);
-  if (formatted === "+48") formatted = "+48 ";
+
+  if (formatted === "+48") {
+    formatted = "+48 ";
+  }
+
   e.target.value = formatted;
   state.phone = formatted;
+  phoneError.textContent = "";
   updateBindings();
   updateNav();
 });
@@ -820,11 +919,14 @@ phoneInput.addEventListener("input", (e) => {
 backBtn.addEventListener("click", prevStep);
 nextBtn.addEventListener("click", nextStep);
 
-
 chooseBarberYes.addEventListener("click", () => {
   state.barberDecision = "yes";
+  state.selectedBarberId = "";
   renderBarberDecision();
+  renderBarberSlider();
+  updateBindings();
   updateNav();
+  showStep(4);
 });
 
 chooseBarberNo.addEventListener("click", () => {
@@ -833,6 +935,7 @@ chooseBarberNo.addEventListener("click", () => {
   renderBarberDecision();
   updateBindings();
   updateNav();
+  showStep(5);
 });
 
 barberPrevBtn.addEventListener("click", () => {
@@ -854,6 +957,7 @@ selectBarberBtn.addEventListener("click", () => {
 
 calendarPrevBtn.addEventListener("click", () => {
   if (state.calendarMonthOffset <= 0) return;
+
   state.calendarMonthOffset -= 1;
   renderCalendar();
 });
@@ -871,18 +975,3 @@ renderSlots();
 updateBindings();
 updateHeader();
 updateNav();
-
-chooseBarberYes.addEventListener("click", () => {
-  state.barberDecision = "yes";
-  renderBarberDecision();
-  updateNav();
-  showStep(4);
-});
-
-chooseBarberNo.addEventListener("click", () => {
-  state.barberDecision = "no";
-  state.selectedBarberId = "";
-  renderBarberDecision();
-  updateBindings();
-  updateNav();
-});
