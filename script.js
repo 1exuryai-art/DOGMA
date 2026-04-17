@@ -358,6 +358,12 @@ function updateHeader() {
 function updateNav() {
   backBtn.style.visibility = state.step === 1 ? "hidden" : "visible";
 
+  // ❗ STEP 2 — УБИРАЕМ НИЖНЮЮ КНОПКУ
+  if (state.step === 2) {
+    nextBtn.classList.add("hidden");
+    return;
+  }
+
   if (state.step === 7) {
     nextBtn.textContent = state.submitting ? "Zapisywanie..." : "Zarezerwuj termin";
   } else if (state.step === 8) {
@@ -374,19 +380,26 @@ function updateNav() {
 
   if (state.step === 1) {
     nextBtn.disabled = !(isValidName(state.name) && isValidPhone(state.phone));
-  } else if (state.step === 2) {
-    nextBtn.disabled = !state.selectedServiceId;
-  } else if (state.step === 3) {
+  } 
+  else if (state.step === 2) {
+    nextBtn.disabled = true; // 🔒 не используется вообще
+  } 
+  else if (state.step === 3) {
     nextBtn.disabled = !state.barberDecision;
-  } else if (state.step === 4) {
-    nextBtn.disabled = !state.selectedBarberId;
-    if (state.selectedBarberId) nextBtn.classList.add("pulse");
-  } else if (state.step === 5) {
+  } 
+  else if (state.step === 4) {
     nextBtn.disabled = !state.selectedDate;
-  } else if (state.step === 6) {
+  } 
+  else if (state.step === 5) {
     nextBtn.disabled = !state.selectedTime;
-  } else if (state.step === 7) {
-    nextBtn.disabled = state.submitting;
+  } 
+  else if (state.step === 6) {
+    nextBtn.disabled = false;
+  }
+
+  // 🔥 Пульс только где нужно
+  if (state.step === 7 && !state.submitting) {
+    nextBtn.classList.add("pulse");
   }
 }
 
