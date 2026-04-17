@@ -819,10 +819,6 @@ phoneInput.addEventListener("input", (e) => {
 backBtn.addEventListener("click", prevStep);
 nextBtn.addEventListener("click", nextStep);
 
-serviceBottomNext.addEventListener("click", () => {
-  if (!state.selectedServiceId) return;
-  showStep(3);
-});
 
 chooseBarberYes.addEventListener("click", () => {
   state.barberDecision = "yes";
