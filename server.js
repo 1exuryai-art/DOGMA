@@ -232,11 +232,18 @@ async function createEvent(payload) {
       timeZone: TIMEZONE
     }
   };
+  // ⬇️ 1. проверяем занят ли слот
+const events = await calendar.events.list({
+  calendarId: client.calendar_id,
+  timeMin: start.toISOString(),
+  timeMax: end.toISOString()
+});
 
-  const response = await calendar.events.insert({
-    calendarId: CALENDAR_ID,
-    requestBody: event
-  });
+if (events.data.items.length > 0) {
+  return res.status(400).json({ error: "Slot taken" });
+}
+
+// ⬇️ 2. если свободно — создаём запись
 
   return response.data;
 }
