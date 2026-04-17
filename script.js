@@ -439,33 +439,43 @@ function renderServiceAccordion() {
     const categoryServices = services.filter((service) => service.category === category.id);
 
     categoryServices.forEach((service) => {
-      const card = document.createElement("button");
-      card.type = "button";
+      const card = document.createElement("div");
       card.className = `service-option ${state.selectedServiceId === service.id ? "selected" : ""}`;
 
       card.innerHTML = `
         <div class="service-option-top">
-          <strong>${service.name}</strong>
+          <strong class="service-option-title">${service.name}</strong>
           <span class="service-option-duration">${service.duration}</span>
         </div>
+
         <div class="service-option-prices">
           <span class="old-price">${formatPrice(service.oldPrice)}</span>
           <span class="new-price">${formatPrice(service.newPrice)}</span>
         </div>
+
         <div class="service-inline-next">
-          <span class="nav-btn nav-btn-primary">Dalej</span>
+          <button class="nav-btn nav-btn-primary service-next-btn" type="button">
+            Dalej
+          </button>
         </div>
       `;
 
-      card.addEventListener("click", () => {
+      card.addEventListener("click", (event) => {
+        const nextButton = event.target.closest(".service-next-btn");
+
         state.selectedCategory = category.id;
         state.selectedServiceId = service.id;
         state.selectedDate = "";
         state.selectedTime = "";
         state.calendarMonthOffset = 0;
+
         renderServiceAccordion();
         updateBindings();
         updateNav();
+
+        if (nextButton) {
+          showStep(3);
+        }
       });
 
       serviceList.appendChild(card);
@@ -473,32 +483,10 @@ function renderServiceAccordion() {
 
     inner.appendChild(serviceList);
     body.appendChild(inner);
-
     item.appendChild(trigger);
     item.appendChild(body);
     categoryAccordion.appendChild(item);
   });
-
-  serviceBottomContinue.classList.toggle("hidden", !state.selectedServiceId);
-}
-
-function renderBarberDecision() {
-  chooseBarberYes.classList.toggle("active", state.barberDecision === "yes");
-  chooseBarberNo.classList.toggle("active", state.barberDecision === "no");
-  barberSkipBox.classList.toggle("hidden", state.barberDecision !== "no");
-}
-
-function renderBarberSlider() {
-  const barber = barbers[state.barberSlideIndex];
-  barberSlidePhoto.textContent = `Zdjęcie ${barber.name}\nPNG 1:1`;
-  barberSlideName.textContent = `💈 ${barber.name}`;
-  barberSlideDescription.textContent = barber.description;
-  barberSlideLangs.innerHTML = barber.languages.map((lang) => `<span>${lang}</span>`).join("");
-  barberCounter.textContent = `${state.barberSlideIndex + 1} / ${barbers.length}`;
-
-  const isSelected = state.selectedBarberId === barber.id;
-  selectBarberBtn.classList.toggle("selected", isSelected);
-  selectBarberBtn.textContent = isSelected ? "Wybrano tego barbera" : "Wybierz tego barbera";
 }
 
 function generateAvailability() {
