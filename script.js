@@ -238,8 +238,6 @@ const nameError = document.getElementById("nameError");
 const phoneError = document.getElementById("phoneError");
 
 const categoryAccordion = document.getElementById("categoryAccordion");
-const serviceBottomContinue = document.getElementById("serviceBottomContinue");
-const serviceBottomNext = document.getElementById("serviceBottomNext");
 
 const chooseBarberYes = document.getElementById("chooseBarberYes");
 const chooseBarberNo = document.getElementById("chooseBarberNo");
