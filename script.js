@@ -1,4 +1,4 @@
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 const stepMeta = [
   {
@@ -10,8 +10,12 @@ const stepMeta = [
     subtitle: "Najpierw wybierz kategorię, potem konkretną usługę."
   },
   {
+    title: "Wybrać barbera?",
+    subtitle: "Możesz przejść dalej bez wyboru albo wybrać konkretnego barbera."
+  },
+  {
     title: "Wybór barbera",
-    subtitle: "Wybierz osobę, do której chcesz się zapisać."
+    subtitle: "Przeglądaj barbera strzałkami i wybierz konkretną osobę."
   },
   {
     title: "Wybór daty",
@@ -67,31 +71,25 @@ const services = [
     oldPrice: 90,
     newPrice: 81,
     duration: "1h",
-    durationMinutes: 60,
-    saveText: "Zaoszczędź do 10%",
-    note: "Najniższa cena z 30 dni przed obniżką: 90,00 zł"
+    durationMinutes: 60
   },
   {
     id: "combo",
     category: "popular",
-    name: "Combo (Strzyżenie + Broda) / Haircut and beard",
+    name: "Combo (Strzyżenie + Broda)",
     oldPrice: 140,
     newPrice: 126,
     duration: "1h 30min",
-    durationMinutes: 90,
-    saveText: "Zaoszczędź do 10%",
-    note: "Najniższa cena z 30 dni przed obniżką: 140,00 zł"
+    durationMinutes: 90
   },
   {
     id: "scissors",
     category: "premium",
-    name: "Strzyżenie nożyczkami / Scissors haircut",
+    name: "Strzyżenie nożyczkami",
     oldPrice: 130,
     newPrice: 117,
     duration: "1h 30min",
-    durationMinutes: 90,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 130,00 zł"
+    durationMinutes: 90
   },
   {
     id: "kids",
@@ -100,9 +98,7 @@ const services = [
     oldPrice: 80,
     newPrice: 72,
     duration: "1h",
-    durationMinutes: 60,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 80,00 zł"
+    durationMinutes: 60
   },
   {
     id: "buzz",
@@ -111,42 +107,34 @@ const services = [
     oldPrice: 80,
     newPrice: 72,
     duration: "1h",
-    durationMinutes: 60,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 80,00 zł"
+    durationMinutes: 60
   },
   {
     id: "beard-zero",
     category: "beard",
-    name: "Broda + Golenie głowy na zero (shaver)",
+    name: "Broda + Golenie głowy na zero",
     oldPrice: 90,
     newPrice: 81,
     duration: "50min",
-    durationMinutes: 50,
-    saveText: "Zaoszczędź do 10%",
-    note: "Najniższa cena z 30 dni przed obniżką: 90,00 zł"
+    durationMinutes: 50
   },
   {
     id: "beard-trim",
     category: "beard",
-    name: "Strzyżenie brody / Beard trim",
+    name: "Strzyżenie brody",
     oldPrice: 70,
     newPrice: 63,
     duration: "40min",
-    durationMinutes: 40,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 70,00 zł"
+    durationMinutes: 40
   },
   {
     id: "shaving",
     category: "beard",
-    name: "Golenie głowy golarką / Shaving",
+    name: "Golenie głowy golarką",
     oldPrice: 50,
     newPrice: 45,
     duration: "30min",
-    durationMinutes: 30,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 50,00 zł"
+    durationMinutes: 30
   },
   {
     id: "gray-beard",
@@ -155,9 +143,7 @@ const services = [
     oldPrice: 150,
     newPrice: 135,
     duration: "1h 30min",
-    durationMinutes: 90,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 150,00 zł"
+    durationMinutes: 90
   },
   {
     id: "gray-hair",
@@ -166,9 +152,7 @@ const services = [
     oldPrice: 150,
     newPrice: 135,
     duration: "1h 30min",
-    durationMinutes: 90,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 150,00 zł"
+    durationMinutes: 90
   },
   {
     id: "gray-combo-beard",
@@ -177,20 +161,16 @@ const services = [
     oldPrice: 210,
     newPrice: 189,
     duration: "2h",
-    durationMinutes: 120,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 210,00 zł"
+    durationMinutes: 120
   },
   {
     id: "gray-combo-full",
     category: "gray",
-    name: "Combo Odsiwianie: (włosy + broda) + strzyżenie",
+    name: "Combo Odsiwianie: włosy + broda + strzyżenie",
     oldPrice: 260,
     newPrice: 234,
     duration: "2h",
-    durationMinutes: 120,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 260,00 zł"
+    durationMinutes: 120
   },
   {
     id: "wax",
@@ -199,9 +179,7 @@ const services = [
     oldPrice: 20,
     newPrice: 18,
     duration: "5min",
-    durationMinutes: 5,
-    saveText: "",
-    note: "Najniższa cena z 30 dni przed obniżką: 20,00 zł"
+    durationMinutes: 5
   }
 ];
 
@@ -232,15 +210,19 @@ const state = {
   phone: "+48 ",
   selectedCategory: "",
   selectedServiceId: "",
+  barberDecision: "",
+  barberSlideIndex: 0,
   selectedBarberId: "",
   selectedDate: "",
   selectedTime: "",
   availableDates: [],
   slotsByDate: {},
+  calendarMonthOffset: 0,
   submitting: false
 };
 
 const steps = [...document.querySelectorAll(".step")];
+
 const progressFill = document.getElementById("progressFill");
 const progressText = document.getElementById("progressText");
 const stepPill = document.getElementById("stepPill");
@@ -255,21 +237,32 @@ const phoneInput = document.getElementById("phoneInput");
 const nameError = document.getElementById("nameError");
 const phoneError = document.getElementById("phoneError");
 
-const categoryList = document.getElementById("categoryList");
-const servicesPanel = document.getElementById("servicesPanel");
-const selectedCategoryTitle = document.getElementById("selectedCategoryTitle");
-const servicesGrid = document.getElementById("servicesGrid");
-const closeCategoryBtn = document.getElementById("closeCategoryBtn");
+const categoryAccordion = document.getElementById("categoryAccordion");
+const serviceBottomContinue = document.getElementById("serviceBottomContinue");
+const serviceBottomNext = document.getElementById("serviceBottomNext");
 
-const barbersList = document.getElementById("barbersList");
+const chooseBarberYes = document.getElementById("chooseBarberYes");
+const chooseBarberNo = document.getElementById("chooseBarberNo");
+const barberSkipBox = document.getElementById("barberSkipBox");
 
-const calendarGrid = document.getElementById("calendarGrid");
+const barberSlidePhoto = document.getElementById("barberSlidePhoto");
+const barberSlideName = document.getElementById("barberSlideName");
+const barberSlideDescription = document.getElementById("barberSlideDescription");
+const barberSlideLangs = document.getElementById("barberSlideLangs");
+const barberCounter = document.getElementById("barberCounter");
+const barberPrevBtn = document.getElementById("barberPrevBtn");
+const barberNextBtn = document.getElementById("barberNextBtn");
+const selectBarberBtn = document.getElementById("selectBarberBtn");
+
 const monthLabel = document.getElementById("monthLabel");
 const calendarStatus = document.getElementById("calendarStatus");
+const calendarGrid = document.getElementById("calendarGrid");
 const dateError = document.getElementById("dateError");
+const calendarPrevBtn = document.getElementById("calendarPrevBtn");
+const calendarNextBtn = document.getElementById("calendarNextBtn");
 
-const slotsGrid = document.getElementById("slotsGrid");
 const slotsStatus = document.getElementById("slotsStatus");
+const slotsGrid = document.getElementById("slotsGrid");
 const timeError = document.getElementById("timeError");
 
 const submitError = document.getElementById("submitError");
@@ -320,35 +313,35 @@ function updateBindings() {
   const service = getSelectedService();
   const barber = getSelectedBarber();
 
-  document.querySelectorAll('[data-bind="name"]').forEach(el => {
+  document.querySelectorAll('[data-bind="name"]').forEach((el) => {
     el.textContent = state.name || "—";
   });
 
-  document.querySelectorAll('[data-bind="phone"]').forEach(el => {
+  document.querySelectorAll('[data-bind="phone"]').forEach((el) => {
     el.textContent = state.phone || "—";
   });
 
-  document.querySelectorAll('[data-bind="serviceName"]').forEach(el => {
+  document.querySelectorAll('[data-bind="serviceName"]').forEach((el) => {
     el.textContent = service?.name || "—";
   });
 
-  document.querySelectorAll('[data-bind="servicePrice"]').forEach(el => {
+  document.querySelectorAll('[data-bind="servicePrice"]').forEach((el) => {
     el.textContent = service ? formatPrice(service.newPrice) : "—";
   });
 
-  document.querySelectorAll('[data-bind="serviceDuration"]').forEach(el => {
+  document.querySelectorAll('[data-bind="serviceDuration"]').forEach((el) => {
     el.textContent = service?.duration || "—";
   });
 
-  document.querySelectorAll('[data-bind="barberName"]').forEach(el => {
-    el.textContent = barber?.name || "—";
+  document.querySelectorAll('[data-bind="barberName"]').forEach((el) => {
+    el.textContent = barber?.name || (state.barberDecision === "no" ? "Bez wyboru" : "—");
   });
 
-  document.querySelectorAll('[data-bind="dateText"]').forEach(el => {
+  document.querySelectorAll('[data-bind="dateText"]').forEach((el) => {
     el.textContent = formatDateText(state.selectedDate);
   });
 
-  document.querySelectorAll('[data-bind="time"]').forEach(el => {
+  document.querySelectorAll('[data-bind="time"]').forEach((el) => {
     el.textContent = state.selectedTime || "—";
   });
 }
@@ -367,9 +360,9 @@ function updateHeader() {
 function updateNav() {
   backBtn.style.visibility = state.step === 1 ? "hidden" : "visible";
 
-  if (state.step === 6) {
+  if (state.step === 7) {
     nextBtn.textContent = state.submitting ? "Zapisywanie..." : "Zarezerwuj termin";
-  } else if (state.step === 7) {
+  } else if (state.step === 8) {
     nextBtn.classList.add("hidden");
     backBtn.classList.add("hidden");
     return;
@@ -379,18 +372,22 @@ function updateNav() {
 
   nextBtn.classList.remove("hidden");
   backBtn.classList.remove("hidden");
+  nextBtn.classList.remove("pulse");
 
   if (state.step === 1) {
     nextBtn.disabled = !(isValidName(state.name) && isValidPhone(state.phone));
   } else if (state.step === 2) {
     nextBtn.disabled = !state.selectedServiceId;
   } else if (state.step === 3) {
-    nextBtn.disabled = !state.selectedBarberId;
+    nextBtn.disabled = !state.barberDecision;
   } else if (state.step === 4) {
-    nextBtn.disabled = !state.selectedDate;
+    nextBtn.disabled = !state.selectedBarberId;
+    if (state.selectedBarberId) nextBtn.classList.add("pulse");
   } else if (state.step === 5) {
-    nextBtn.disabled = !state.selectedTime;
+    nextBtn.disabled = !state.selectedDate;
   } else if (state.step === 6) {
+    nextBtn.disabled = !state.selectedTime;
+  } else if (state.step === 7) {
     nextBtn.disabled = state.submitting;
   }
 }
@@ -398,7 +395,7 @@ function updateNav() {
 function showStep(step) {
   state.step = step;
 
-  steps.forEach(section => {
+  steps.forEach((section) => {
     section.classList.toggle("active", Number(section.dataset.step) === step);
   });
 
@@ -408,106 +405,102 @@ function showStep(step) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function renderCategories() {
-  categoryList.innerHTML = "";
+function renderServiceAccordion() {
+  categoryAccordion.innerHTML = "";
 
-  serviceCategories.forEach(category => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "category-btn";
-    if (state.selectedCategory === category.id) button.classList.add("active");
+  serviceCategories.forEach((category) => {
+    const item = document.createElement("div");
+    const isOpen = state.selectedCategory === category.id;
+    item.className = `accordion-item ${isOpen ? "open" : ""}`;
 
-    button.innerHTML = `
-      <strong>${category.title}</strong>
-      <span>${category.description}</span>
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "accordion-trigger";
+    trigger.innerHTML = `
+      <div class="accordion-trigger-main">
+        <strong>${category.title}</strong>
+        <span>${category.description}</span>
+      </div>
+      <div class="accordion-arrow">⌄</div>
     `;
 
-    button.addEventListener("click", () => {
-      state.selectedCategory = category.id;
-      renderCategories();
-      renderServices();
+    trigger.addEventListener("click", () => {
+      state.selectedCategory = state.selectedCategory === category.id ? "" : category.id;
+      renderServiceAccordion();
     });
 
-    categoryList.appendChild(button);
+    const body = document.createElement("div");
+    body.className = "accordion-body";
+
+    const inner = document.createElement("div");
+    inner.className = "accordion-inner";
+
+    const serviceList = document.createElement("div");
+    serviceList.className = "service-option-list";
+
+    const categoryServices = services.filter((service) => service.category === category.id);
+
+    categoryServices.forEach((service) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = `service-option ${state.selectedServiceId === service.id ? "selected" : ""}`;
+
+      card.innerHTML = `
+        <div class="service-option-top">
+          <strong>${service.name}</strong>
+          <span class="service-option-duration">${service.duration}</span>
+        </div>
+        <div class="service-option-prices">
+          <span class="old-price">${formatPrice(service.oldPrice)}</span>
+          <span class="new-price">${formatPrice(service.newPrice)}</span>
+        </div>
+        <div class="service-inline-next">
+          <span class="nav-btn nav-btn-primary">Dalej</span>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        state.selectedCategory = category.id;
+        state.selectedServiceId = service.id;
+        state.selectedDate = "";
+        state.selectedTime = "";
+        state.calendarMonthOffset = 0;
+        renderServiceAccordion();
+        updateBindings();
+        updateNav();
+      });
+
+      serviceList.appendChild(card);
+    });
+
+    inner.appendChild(serviceList);
+    body.appendChild(inner);
+
+    item.appendChild(trigger);
+    item.appendChild(body);
+    categoryAccordion.appendChild(item);
   });
+
+  serviceBottomContinue.classList.toggle("hidden", !state.selectedServiceId);
 }
 
-function renderServices() {
-  if (!state.selectedCategory) {
-    servicesPanel.classList.add("hidden");
-    servicesGrid.innerHTML = "";
-    return;
-  }
-
-  servicesPanel.classList.remove("hidden");
-
-  const category = serviceCategories.find(item => item.id === state.selectedCategory);
-  selectedCategoryTitle.textContent = category?.title || "Usługi";
-
-  const filtered = services.filter(service => service.category === state.selectedCategory);
-  servicesGrid.innerHTML = "";
-
-  filtered.forEach(service => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "service-card";
-    if (state.selectedServiceId === service.id) card.classList.add("selected");
-
-    card.innerHTML = `
-      <strong>${service.name}</strong>
-      <p class="old-note">${service.note}</p>
-      <div class="service-prices">
-        <span class="old-price">${formatPrice(service.oldPrice)}</span>
-        <span class="new-price">${formatPrice(service.newPrice)}</span>
-      </div>
-      <div class="service-meta">
-        <span>${service.duration}</span>
-        <span>${service.saveText || "Premium"}</span>
-      </div>
-    `;
-
-    card.addEventListener("click", () => {
-      state.selectedServiceId = service.id;
-      state.selectedDate = "";
-      state.selectedTime = "";
-      renderServices();
-      updateBindings();
-      updateNav();
-    });
-
-    servicesGrid.appendChild(card);
-  });
+function renderBarberDecision() {
+  chooseBarberYes.classList.toggle("active", state.barberDecision === "yes");
+  chooseBarberNo.classList.toggle("active", state.barberDecision === "no");
+  barberSkipBox.classList.toggle("hidden", state.barberDecision !== "no");
 }
 
-function renderBarbers() {
-  barbersList.innerHTML = "";
+function renderBarberSlider() {
+  const barber = barbers[state.barberSlideIndex];
+  barberSlidePhoto.textContent = `Zdjęcie ${barber.name}\nPNG 1:1`;
+  barberSlideName.textContent = `💈 ${barber.name}`;
+  barberSlideDescription.textContent = barber.description;
+  barberSlideLangs.innerHTML = barber.languages.map((lang) => `<span>${lang}</span>`).join("");
+  barberCounter.textContent = `${state.barberSlideIndex + 1} / ${barbers.length}`;
 
-  barbers.forEach(barber => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "barber-card";
-    if (state.selectedBarberId === barber.id) card.classList.add("selected");
-
-    card.innerHTML = `
-      <div class="barber-photo">Zdjęcie ${barber.name}<br>PNG 1:1</div>
-      <strong>💈 ${barber.name}</strong>
-      <p>${barber.description}</p>
-      <div class="barber-langs">
-        ${barber.languages.map(lang => `<span>${lang}</span>`).join("")}
-      </div>
-    `;
-
-    card.addEventListener("click", () => {
-      state.selectedBarberId = barber.id;
-      state.selectedDate = "";
-      state.selectedTime = "";
-      renderBarbers();
-      updateBindings();
-      updateNav();
-    });
-
-    barbersList.appendChild(card);
-  });
+  const isSelected = state.selectedBarberId === barber.id;
+  selectBarberBtn.classList.toggle("selected", isSelected);
+  selectBarberBtn.textContent = isSelected ? "Wybrano tego barbera" : "Wybierz tego barbera";
 }
 
 function generateAvailability() {
@@ -523,20 +516,35 @@ function generateAvailability() {
     "17:00", "17:30", "18:00"
   ];
 
-  for (let i = 1; i <= 18; i++) {
+  for (let i = 1; i <= 75; i += 1) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
     if (date.getDay() === 0) continue;
 
-    const iso = date.toISOString().slice(0, 10);
-    state.availableDates.push(iso);
+    const iso = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
 
-    state.slotsByDate[iso] = baseSlots.map((time, index) => ({
-      time,
-      available: ((index + i) % 4 !== 0)
-    }));
+    const isAvailableDay = i % 5 !== 0;
+
+    if (isAvailableDay) {
+      state.availableDates.push(iso);
+
+      state.slotsByDate[iso] = baseSlots.map((time, index) => ({
+        time,
+        available: ((index + i) % 4 !== 0)
+      }));
+    }
   }
+}
+
+function getMonthName(monthIndex) {
+  const months = [
+    "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+    "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"
+  ];
+  return months[monthIndex];
 }
 
 function renderCalendar() {
@@ -547,35 +555,94 @@ function renderCalendar() {
     generateAvailability();
   }
 
-  if (state.availableDates[0]) {
-    const firstDate = new Date(`${state.availableDates[0]}T00:00:00`);
-    monthLabel.textContent = new Intl.DateTimeFormat("pl-PL", {
-      month: "long",
-      year: "numeric"
-    }).format(firstDate);
+  const today = new Date();
+  const currentMonthDate = new Date(today.getFullYear(), today.getMonth() + state.calendarMonthOffset, 1);
+  const currentYear = currentMonthDate.getFullYear();
+  const currentMonth = currentMonthDate.getMonth();
+
+  monthLabel.textContent = `${getMonthName(currentMonth)} ${currentYear}`;
+
+  const availableSet = new Set(state.availableDates);
+  const todayString = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  let firstWeekday = firstDay.getDay();
+  if (firstWeekday === 0) firstWeekday = 7;
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+
+  const cells = [];
+
+  for (let i = firstWeekday - 1; i > 0; i -= 1) {
+    cells.push({
+      label: prevMonthDays - i + 1,
+      muted: true
+    });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateObj = new Date(currentYear, currentMonth, day);
+    const iso = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
+
+    const isPast = iso < todayString;
+    const isAvailable = availableSet.has(iso);
+
+    cells.push({
+      label: day,
+      iso,
+      muted: false,
+      available: !isPast && isAvailable,
+      selected: state.selectedDate === iso,
+      today: iso === todayString
+    });
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push({
+      label: "",
+      muted: true
+    });
   }
 
   calendarStatus.textContent = `${state.availableDates.length} dostępnych dni`;
 
-  state.availableDates.forEach(dateStr => {
-    const date = new Date(`${dateStr}T00:00:00`);
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "calendar-day";
-    if (state.selectedDate === dateStr) btn.classList.add("selected");
-    btn.textContent = `${date.getDate()}.${date.getMonth() + 1}`;
+  cells.forEach((cell) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "calendar-day";
+    button.textContent = cell.label;
 
-    btn.addEventListener("click", () => {
-      state.selectedDate = dateStr;
-      state.selectedTime = "";
-      renderCalendar();
-      renderSlots();
-      updateBindings();
-      updateNav();
-    });
+    if (cell.muted) {
+      button.classList.add("muted");
+      button.disabled = true;
+    } else {
+      if (cell.selected) button.classList.add("selected");
+      if (cell.today) button.classList.add("today");
 
-    calendarGrid.appendChild(btn);
+      if (!cell.available) {
+        button.classList.add("unavailable");
+        button.disabled = true;
+      } else {
+        button.addEventListener("click", () => {
+          state.selectedDate = cell.iso;
+          state.selectedTime = "";
+          renderCalendar();
+          renderSlots();
+          updateBindings();
+          updateNav();
+        });
+      }
+    }
+
+    calendarGrid.appendChild(button);
   });
+
+  calendarPrevBtn.disabled = state.calendarMonthOffset <= 0;
 }
 
 function renderSlots() {
@@ -588,10 +655,10 @@ function renderSlots() {
   }
 
   const slots = state.slotsByDate[state.selectedDate] || [];
-  const freeCount = slots.filter(slot => slot.available).length;
+  const freeCount = slots.filter((slot) => slot.available).length;
   slotsStatus.textContent = `${freeCount} wolnych godzin`;
 
-  slots.forEach(slot => {
+  slots.forEach((slot) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "slot-btn";
@@ -631,7 +698,7 @@ async function submitBooking() {
     serviceName: service.name,
     serviceDuration: service.duration,
     servicePrice: formatPrice(service.newPrice),
-    barberName: barber.name,
+    barberName: barber?.name || "Bez wyboru",
     date: state.selectedDate,
     time: state.selectedTime
   };
@@ -651,7 +718,7 @@ async function submitBooking() {
       throw new Error(data?.error || "Nie udało się zapisać wizyty.");
     }
 
-    showStep(7);
+    showStep(8);
   } catch (error) {
     submitError.textContent = error.message || "Błąd serwera.";
   } finally {
@@ -680,23 +747,27 @@ function nextStep() {
   }
 
   if (state.step === 3) {
-    if (!state.selectedBarberId) return;
+    if (!state.barberDecision) return;
+
+    if (state.barberDecision === "no") {
+      state.selectedBarberId = "";
+      showStep(5);
+      return;
+    }
+
     showStep(4);
     return;
   }
 
   if (state.step === 4) {
-    if (!state.selectedDate) {
-      dateError.textContent = "Wybierz datę";
-      return;
-    }
+    if (!state.selectedBarberId) return;
     showStep(5);
     return;
   }
 
   if (state.step === 5) {
-    if (!state.selectedTime) {
-      timeError.textContent = "Wybierz godzinę";
+    if (!state.selectedDate) {
+      dateError.textContent = "Wybierz datę";
       return;
     }
     showStep(6);
@@ -704,6 +775,15 @@ function nextStep() {
   }
 
   if (state.step === 6) {
+    if (!state.selectedTime) {
+      timeError.textContent = "Wybierz godzinę";
+      return;
+    }
+    showStep(7);
+    return;
+  }
+
+  if (state.step === 7) {
     submitBooking();
   }
 }
@@ -714,42 +794,83 @@ function prevStep() {
   }
 }
 
-nameInput.addEventListener("input", e => {
+nameInput.addEventListener("input", (e) => {
   state.name = e.target.value;
-  updateNav();
   updateBindings();
+  updateNav();
 });
 
 phoneInput.value = state.phone;
 
-phoneInput.addEventListener("keydown", e => {
+phoneInput.addEventListener("keydown", (e) => {
   const pos = phoneInput.selectionStart || 0;
   if ((e.key === "Backspace" || e.key === "Delete") && pos <= 4) {
     e.preventDefault();
   }
 });
 
-phoneInput.addEventListener("input", e => {
+phoneInput.addEventListener("input", (e) => {
   let formatted = normalizePhone(e.target.value);
   if (formatted === "+48") formatted = "+48 ";
   e.target.value = formatted;
   state.phone = formatted;
-  updateNav();
   updateBindings();
-});
-
-closeCategoryBtn.addEventListener("click", () => {
-  state.selectedCategory = "";
-  renderCategories();
-  renderServices();
+  updateNav();
 });
 
 backBtn.addEventListener("click", prevStep);
 nextBtn.addEventListener("click", nextStep);
 
-renderCategories();
-renderServices();
-renderBarbers();
+serviceBottomNext.addEventListener("click", () => {
+  if (!state.selectedServiceId) return;
+  showStep(3);
+});
+
+chooseBarberYes.addEventListener("click", () => {
+  state.barberDecision = "yes";
+  renderBarberDecision();
+  updateNav();
+});
+
+chooseBarberNo.addEventListener("click", () => {
+  state.barberDecision = "no";
+  state.selectedBarberId = "";
+  renderBarberDecision();
+  updateBindings();
+  updateNav();
+});
+
+barberPrevBtn.addEventListener("click", () => {
+  state.barberSlideIndex = (state.barberSlideIndex - 1 + barbers.length) % barbers.length;
+  renderBarberSlider();
+});
+
+barberNextBtn.addEventListener("click", () => {
+  state.barberSlideIndex = (state.barberSlideIndex + 1) % barbers.length;
+  renderBarberSlider();
+});
+
+selectBarberBtn.addEventListener("click", () => {
+  state.selectedBarberId = barbers[state.barberSlideIndex].id;
+  renderBarberSlider();
+  updateBindings();
+  updateNav();
+});
+
+calendarPrevBtn.addEventListener("click", () => {
+  if (state.calendarMonthOffset <= 0) return;
+  state.calendarMonthOffset -= 1;
+  renderCalendar();
+});
+
+calendarNextBtn.addEventListener("click", () => {
+  state.calendarMonthOffset += 1;
+  renderCalendar();
+});
+
+renderServiceAccordion();
+renderBarberDecision();
+renderBarberSlider();
 renderCalendar();
 renderSlots();
 updateBindings();
