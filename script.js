@@ -187,21 +187,21 @@ const barbers = [
   {
     id: "tymur",
     name: "Tymur",
-    photo: "./tymur.png",
+    photo: "/tymur.png",
     description: "Młody i ambitny barber z pasją do klasycznych strzyżeń.",
     languages: ["🇺🇦 Ukraiński", "🇵🇱 Polski", "🇬🇧 English"]
   },
   {
     id: "dima",
     name: "Dima",
-    photo: "./dima.png",
+    photo: "/dima.png",
     description: "Doświadczony barber z 3-letnim stażem. Mistrz klasyki i nowoczesnych stylów.",
     languages: ["🇺🇦 Ukraiński", "🇵🇱 Polski", "🇬🇧 English"]
   },
   {
     id: "vlad",
     name: "Vlad",
-    photo: "./vlad.png",
+    photo: "/vlad.png",
     description: "Młody talent z energią i świeżym podejściem do strzyżeń.",
     languages: ["🇺🇦 Ukraiński", "🇷🇺 Rosyjski", "🇵🇱 Polski"]
   }
@@ -525,8 +525,7 @@ function renderServiceAccordion() {
 function renderBarberDecision() {
   if (!barberSkipBox) return;
 
-  const showSkip = state.barberDecision === "no";
-  barberSkipBox.classList.toggle("hidden", !showSkip);
+  barberSkipBox.classList.toggle("hidden", state.barberDecision !== "no");
 
   if (chooseBarberYes) {
     chooseBarberYes.classList.toggle("active", state.barberDecision === "yes");
@@ -542,7 +541,9 @@ function renderBarberSlider() {
   if (!barber) return;
 
   if (barberSlidePhoto) {
-    barberSlidePhoto.textContent = barber.name;
+    barberSlidePhoto.innerHTML = `
+      <img src="${barber.photo}" alt="${barber.name}" class="barber-photo-img" />
+    `;
   }
 
   if (barberSlideName) {
@@ -822,7 +823,6 @@ function nextStep() {
     phoneError.textContent = validPhone ? "" : "Podaj poprawny numer telefonu";
 
     if (!validName || !validPhone) return;
-
     showStep(2);
     return;
   }
@@ -857,7 +857,6 @@ function nextStep() {
       dateError.textContent = "Wybierz datę";
       return;
     }
-
     showStep(6);
     return;
   }
@@ -867,7 +866,6 @@ function nextStep() {
       timeError.textContent = "Wybierz godzinę";
       return;
     }
-
     showStep(7);
     return;
   }
@@ -960,7 +958,6 @@ selectBarberBtn.addEventListener("click", () => {
 
 calendarPrevBtn.addEventListener("click", () => {
   if (state.calendarMonthOffset <= 0) return;
-
   state.calendarMonthOffset -= 1;
   renderCalendar();
 });
