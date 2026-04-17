@@ -871,3 +871,18 @@ renderSlots();
 updateBindings();
 updateHeader();
 updateNav();
+
+chooseBarberYes.addEventListener("click", () => {
+  state.barberDecision = "yes";
+  renderBarberDecision();
+  updateNav();
+  showStep(4);
+});
+
+chooseBarberNo.addEventListener("click", () => {
+  state.barberDecision = "no";
+  state.selectedBarberId = "";
+  renderBarberDecision();
+  updateBindings();
+  updateNav();
+});
