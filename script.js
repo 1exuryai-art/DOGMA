@@ -207,6 +207,14 @@ const barbers = [
   }
 ];
 
+const BASE_SLOTS = [
+  "09:00", "09:30", "10:00", "10:30",
+  "11:00", "11:30", "12:00", "12:30",
+  "13:00", "13:30", "14:00", "14:30",
+  "15:00", "15:30", "16:00", "16:30",
+  "17:00", "17:30", "18:00"
+];
+
 const state = {
   step: 1,
   name: "",
@@ -218,7 +226,6 @@ const state = {
   selectedBarberId: "",
   selectedDate: "",
   selectedTime: "",
-  availableDates: [],
   slotsByDate: {},
   calendarMonthOffset: 0,
   submitting: false
@@ -314,6 +321,58 @@ function isValidName(value) {
 
 function isValidPhone(value) {
   return /^\+48 \d{3} \d{3} \d{3}$/.test(value.trim());
+}
+
+function timeToMinutes(timeStr) {
+  const [hour, minute] = timeStr.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function rangesOverlap(startA, endA, startB, endB) {
+  return startA < endB && endA > startB;
+}
+
+function buildSlotsFromBusy(busyIntervals, serviceDurationMinutes) {
+  return BASE_SLOTS
+    .map((time) => {
+      const slotStart = timeToMinutes(time);
+      const slotEnd = slotStart + serviceDurationMinutes;
+
+      const overlapsBusy = busyIntervals.some((busy) => {
+        const busyStart = timeToMinutes(busy.start);
+        const busyEnd = timeToMinutes(busy.end);
+        return rangesOverlap(slotStart, slotEnd, busyStart, busyEnd);
+      });
+
+      return {
+        time,
+        available: !overlapsBusy
+      };
+    })
+    .filter((slot) => slot.available);
+}
+
+async function loadAvailabilityForDate(dateStr) {
+  const service = getSelectedService();
+
+  if (!dateStr || !service) return;
+
+  slotsStatus.textContent = "Ładowanie godzin...";
+  slotsGrid.innerHTML = "";
+
+  const response = await fetch(`/api/availability?date=${encodeURIComponent(dateStr)}`);
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || "Nie udało się pobrać dostępności.");
+  }
+
+  const busyIntervals = Array.isArray(data.busy) ? data.busy : [];
+
+  state.slotsByDate[dateStr] = buildSlotsFromBusy(
+    busyIntervals,
+    service.durationMinutes
+  );
 }
 
 function updateBindings() {
@@ -497,6 +556,7 @@ function renderServiceAccordion() {
         state.selectedDate = "";
         state.selectedTime = "";
         state.calendarMonthOffset = 0;
+        state.slotsByDate = {};
 
         renderServiceAccordion();
         renderBarberDecision();
@@ -575,43 +635,6 @@ function renderBarberSlider() {
   }
 }
 
-function generateAvailability() {
-  const today = new Date();
-
-  state.availableDates = [];
-  state.slotsByDate = {};
-
-  const baseSlots = [
-    "09:00", "09:30", "10:00", "10:30",
-    "11:00", "11:30", "12:00", "12:30",
-    "13:00", "13:30", "14:00", "14:30",
-    "15:00", "15:30", "16:00", "16:30",
-    "17:00", "17:30", "18:00"
-  ];
-
-  for (let i = 1; i <= 75; i += 1) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-
-    if (date.getDay() === 0) continue;
-
-    const iso = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 10);
-
-    const isAvailableDay = i % 5 !== 0;
-
-    if (isAvailableDay) {
-      state.availableDates.push(iso);
-
-      state.slotsByDate[iso] = baseSlots.map((time, index) => ({
-        time,
-        available: (index + i) % 4 !== 0
-      }));
-    }
-  }
-}
-
 function getMonthName(monthIndex) {
   const months = [
     "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
@@ -627,10 +650,6 @@ function renderCalendar() {
   calendarGrid.innerHTML = "";
   dateError.textContent = "";
 
-  if (!state.availableDates.length) {
-    generateAvailability();
-  }
-
   const today = new Date();
   const currentMonthDate = new Date(
     today.getFullYear(),
@@ -643,7 +662,6 @@ function renderCalendar() {
 
   monthLabel.textContent = `${getMonthName(currentMonth)} ${currentYear}`;
 
-  const availableSet = new Set(state.availableDates);
   const todayString = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 10);
@@ -672,13 +690,13 @@ function renderCalendar() {
       .slice(0, 10);
 
     const isPast = iso < todayString;
-    const isAvailable = availableSet.has(iso);
+    const isSunday = dateObj.getDay() === 0;
 
     cells.push({
       label: day,
       iso,
       muted: false,
-      available: !isPast && isAvailable,
+      available: !isPast && !isSunday,
       selected: state.selectedDate === iso,
       today: iso === todayString
     });
@@ -691,7 +709,7 @@ function renderCalendar() {
     });
   }
 
-  calendarStatus.textContent = `${state.availableDates.length} dostępnych dni`;
+  calendarStatus.textContent = "Wybierz dzień, aby pobrać wolne godziny";
 
   cells.forEach((cell) => {
     const button = document.createElement("button");
@@ -710,13 +728,26 @@ function renderCalendar() {
         button.classList.add("unavailable");
         button.disabled = true;
       } else {
-        button.addEventListener("click", () => {
-          state.selectedDate = cell.iso;
-          state.selectedTime = "";
-          renderCalendar();
-          renderSlots();
-          updateBindings();
-          updateNav();
+        button.addEventListener("click", async () => {
+          try {
+            state.selectedDate = cell.iso;
+            state.selectedTime = "";
+
+            renderCalendar();
+            renderSlots();
+            updateBindings();
+            updateNav();
+
+            await loadAvailabilityForDate(cell.iso);
+
+            renderSlots();
+            updateBindings();
+            updateNav();
+          } catch (error) {
+            dateError.textContent = error.message || "Nie udało się pobrać godzin.";
+            slotsStatus.textContent = "Błąd ładowania godzin";
+            slotsGrid.innerHTML = "";
+          }
         });
       }
     }
@@ -738,10 +769,19 @@ function renderSlots() {
     return;
   }
 
-  const slots = state.slotsByDate[state.selectedDate] || [];
-  const freeCount = slots.filter((slot) => slot.available).length;
+  const slots = state.slotsByDate[state.selectedDate];
 
-  slotsStatus.textContent = `${freeCount} wolnych godzin`;
+  if (!slots) {
+    slotsStatus.textContent = "Wybierz dzień, aby pobrać godziny";
+    return;
+  }
+
+  if (!slots.length) {
+    slotsStatus.textContent = "Brak wolnych godzin";
+    return;
+  }
+
+  slotsStatus.textContent = `${slots.length} wolnych godzin`;
 
   slots.forEach((slot) => {
     const btn = document.createElement("button");
@@ -749,18 +789,11 @@ function renderSlots() {
     btn.className = "slot-btn";
     btn.textContent = slot.time;
 
-    if (!slot.available) {
-      btn.classList.add("busy");
-      btn.disabled = true;
-    }
-
     if (state.selectedTime === slot.time) {
       btn.classList.add("selected");
     }
 
     btn.addEventListener("click", () => {
-      if (!slot.available) return;
-
       state.selectedTime = slot.time;
       renderSlots();
       updateBindings();
