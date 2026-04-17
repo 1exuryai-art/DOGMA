@@ -60,19 +60,95 @@ function parseDuration(durationText) {
   return totalMinutes;
 }
 
+function parseDateParts(dateStr) {
+  const [year, month, day] = String(dateStr).split("-").map(Number);
+
+  if (!year || !month || !day) {
+    throw new Error("Invalid date format. Expected YYYY-MM-DD");
+  }
+
+  return { year, month, day };
+}
+
+function parseTimeParts(timeStr) {
+  const [hour, minute] = String(timeStr).split(":").map(Number);
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    throw new Error("Invalid time format. Expected HH:MM");
+  }
+
+  return { hour, minute };
+}
+
+function getTimeZoneOffsetMinutes(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset"
+  });
+
+  const parts = formatter.formatToParts(date);
+  const timeZoneName = parts.find((part) => part.type === "timeZoneName")?.value || "GMT+0";
+
+  const match = timeZoneName.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
+
+  if (!match) return 0;
+
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number(match[2] || 0);
+  const minutes = Number(match[3] || 0);
+
+  return sign * (hours * 60 + minutes);
+}
+
+function getUtcDateFromTimeZoneLocal(dateStr, timeStr, timeZone = TIMEZONE) {
+  const { year, month, day } = parseDateParts(dateStr);
+  const { hour, minute } = parseTimeParts(timeStr);
+
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  const offsetMinutes = getTimeZoneOffsetMinutes(utcGuess, timeZone);
+
+  return new Date(utcGuess.getTime() - offsetMinutes * 60 * 1000);
+}
+
+function formatTimeInTimeZone(date, timeZone = TIMEZONE) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
+}
+
+function formatDateTimeForGoogle(date, timeZone = TIMEZONE) {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((part) => part.type === type)?.value || "";
+
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 function buildDateTime(dateStr, timeStr) {
   if (!dateStr || !timeStr) {
     throw new Error("Date and time are required");
   }
 
-  const isoDateTime = `${dateStr}T${timeStr}:00`;
-  const date = new Date(isoDateTime);
-
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("Invalid date or time");
-  }
-
-  return date;
+  return getUtcDateFromTimeZoneLocal(dateStr, timeStr, TIMEZONE);
 }
 
 function addMinutes(date, minutes) {
@@ -81,6 +157,7 @@ function addMinutes(date, minutes) {
 
 function formatCalendarDescription(payload) {
   return [
+    "Źródło: Rezerwacja przez stronę",
     `Imię: ${payload.name}`,
     `Telefon: ${payload.phone}`,
     `Usługa: ${payload.serviceName}`,
@@ -105,6 +182,36 @@ function createOAuthClient() {
   return oauth2Client;
 }
 
+async function getBusyIntervals(dateStr) {
+  if (!dateStr) {
+    throw new Error("Date is required");
+  }
+
+  const oauth2Client = createOAuthClient();
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  const dayStart = getUtcDateFromTimeZoneLocal(dateStr, "00:00", TIMEZONE);
+  const dayEnd = getUtcDateFromTimeZoneLocal(dateStr, "23:59", TIMEZONE);
+
+  const response = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    timeMin: dayStart.toISOString(),
+    timeMax: dayEnd.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime"
+  });
+
+  const events = response.data.items || [];
+
+  return events
+    .filter((event) => event.status !== "cancelled")
+    .filter((event) => event.start?.dateTime && event.end?.dateTime)
+    .map((event) => ({
+      start: formatTimeInTimeZone(new Date(event.start.dateTime), TIMEZONE),
+      end: formatTimeInTimeZone(new Date(event.end.dateTime), TIMEZONE)
+    }));
+}
+
 async function createEvent(payload) {
   const oauth2Client = createOAuthClient();
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
@@ -114,14 +221,14 @@ async function createEvent(payload) {
   const endDate = addMinutes(startDate, durationMinutes);
 
   const event = {
-    summary: `${payload.serviceName} — ${payload.name}`,
+    summary: `[WWW] ${payload.serviceName} - ${payload.name}`,
     description: formatCalendarDescription(payload),
     start: {
-      dateTime: startDate.toISOString(),
+      dateTime: `${payload.date}T${payload.time}:00`,
       timeZone: TIMEZONE
     },
     end: {
-      dateTime: endDate.toISOString(),
+      dateTime: formatDateTimeForGoogle(endDate, TIMEZONE),
       timeZone: TIMEZONE
     }
   };
@@ -146,21 +253,40 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.get("/api/slots/mock", (_req, res) => {
-  const slots = [
-    { time: "09:00", available: true },
-    { time: "09:30", available: false },
-    { time: "10:00", available: true },
-    { time: "10:30", available: true },
-    { time: "11:00", available: false },
-    { time: "11:30", available: true },
-    { time: "12:00", available: true }
-  ];
+app.get("/api/availability", async (req, res) => {
+  try {
+    if (missingEnv.length > 0) {
+      return res.status(500).json({
+        ok: false,
+        error: `Missing env variables: ${missingEnv.join(", ")}`
+      });
+    }
 
-  res.json({
-    ok: true,
-    slots
-  });
+    const date = String(req.query.date || "").trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Query param 'date' must be in format YYYY-MM-DD"
+      });
+    }
+
+    const busy = await getBusyIntervals(date);
+
+    return res.json({
+      ok: true,
+      date,
+      timeZone: TIMEZONE,
+      busy
+    });
+  } catch (error) {
+    console.error("Availability error:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: error.message || "Internal server error"
+    });
+  }
 });
 
 app.post("/api/book", async (req, res) => {
