@@ -237,6 +237,3 @@ app.post("/api/book", async (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`DOGMA booking app running on port ${PORT}`);
 });
-app.listen(PORT, () => {
-  console.log(`DOGMA booking app running on port ${PORT}`);
-});
