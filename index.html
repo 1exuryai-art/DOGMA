@@ -3,452 +3,228 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DOGMA BARBERSHOP — Rezerwacja premium</title>
-  <meta
-    name="description"
-    content="Premium booking experience dla DOGMA BARBERSHOP. Wybierz usługę, barbera, datę i godzinę w jednym eleganckim flow."
-  />
+  <title>DOGMA BARBERSHOP — Rezerwacja</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="ambient ambient-1"></div>
-  <div class="ambient ambient-2"></div>
-  <div class="ambient ambient-3"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
 
-  <main class="page-shell">
-    <section class="hero glass">
-      <div class="hero-copy">
-        <div class="eyebrow">DOGMA BARBERSHOP • REZERWACJA ONLINE</div>
-        <h1>
-          Premium booking flow
-          <span>bez chaosu</span>
-        </h1>
-        <p class="hero-lead">
-          Szybka rezerwacja w jednym eleganckim procesie. Klient wybiera usługę,
-          barbera, datę i godzinę — bez zbędnych wiadomości, bez zgadywania, bez bałaganu.
-        </p>
-
-        <div class="hero-badges">
-          <span class="chip">Szybka rezerwacja</span>
-          <span class="chip">Google Calendar</span>
-          <span class="chip">Premium service UX</span>
-        </div>
-      </div>
-
-      <div class="hero-side glass-inner">
-        <div class="hero-side-top">
-          <span class="status-dot"></span>
-          <span>System rezerwacji aktywny</span>
-        </div>
-
-        <div class="hero-side-grid">
-          <div class="mini-stat">
-            <strong>1 flow</strong>
-            <span>Usługa → Barber → Termin</span>
-          </div>
-          <div class="mini-stat">
-            <strong>7 kroków</strong>
-            <span>Jasny i kontrolowany proces</span>
-          </div>
-          <div class="mini-stat">
-            <strong>Dark premium</strong>
-            <span>Masculine digital luxury</span>
-          </div>
-          <div class="mini-stat">
-            <strong>Calendar sync</strong>
-            <span>Dane zapisują się automatycznie</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="booking-layout">
-      <aside class="summary-panel glass" id="summaryPanel">
-        <div class="summary-top">
+  <main class="app-shell">
+    <section class="wizard-frame">
+      <header class="wizard-top">
+        <div class="wizard-top-row">
           <div>
-            <div class="eyebrow eyebrow-small">BOOKING CONTEXT</div>
-            <h2>Twoja rezerwacja</h2>
+            <div class="eyebrow">DOGMA BARBERSHOP</div>
+            <h1 id="stepTitle">Dane kontaktowe</h1>
+            <p id="stepSubtitle">Zostaw podstawowe dane i przejdź dalej.</p>
           </div>
-          <div class="summary-step-badge" id="summaryStepBadge">Krok 1 / 7</div>
+          <div class="step-pill" id="stepPill">1 / 7</div>
         </div>
 
-        <div class="summary-progress">
-          <div class="summary-progress-bar">
-            <div class="summary-progress-fill" id="progressFill"></div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
           </div>
+          <div class="progress-text" id="progressText">14%</div>
         </div>
+      </header>
 
-        <div class="summary-list">
-          <div class="summary-item">
-            <span class="summary-label">Imię</span>
-            <strong data-bind="name">—</strong>
+      <section class="wizard-card">
+        <!-- STEP 1 -->
+        <section class="step active" data-step="1">
+          <div class="step-content narrow">
+            <div class="card-head">
+              <h2>Wpisz imię i telefon</h2>
+              <p>Bez tych danych nie przejdziesz do wyboru usługi.</p>
+            </div>
+
+            <label class="field">
+              <span>Imię</span>
+              <input id="nameInput" type="text" placeholder="Np. Michał" />
+              <small class="error" id="nameError"></small>
+            </label>
+
+            <label class="field">
+              <span>Telefon</span>
+              <input id="phoneInput" type="tel" placeholder="+48 123 456 789" />
+              <small class="error" id="phoneError"></small>
+            </label>
           </div>
-          <div class="summary-item">
-            <span class="summary-label">Telefon</span>
-            <strong data-bind="phone">—</strong>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Usługa</span>
-            <strong data-bind="serviceName">—</strong>
-          </div>
-          <div class="summary-item summary-split">
-            <div>
-              <span class="summary-label">Cena</span>
-              <strong data-bind="servicePrice">—</strong>
-            </div>
-            <div>
-              <span class="summary-label">Czas</span>
-              <strong data-bind="serviceDuration">—</strong>
-            </div>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Barber</span>
-            <strong data-bind="barberName">—</strong>
-          </div>
-          <div class="summary-item summary-split">
-            <div>
-              <span class="summary-label">Data</span>
-              <strong data-bind="dateText">—</strong>
-            </div>
-            <div>
-              <span class="summary-label">Godzina</span>
-              <strong data-bind="time">—</strong>
-            </div>
-          </div>
-        </div>
+        </section>
 
-        <div class="summary-note glass-inner">
-          <p>
-            Po potwierdzeniu wizyty dane są automatycznie zapisywane w
-            <strong>Google Calendar</strong>.
-          </p>
-        </div>
-      </aside>
-
-      <section class="booking-app glass">
-        <div class="app-top">
-          <div>
-            <div class="eyebrow eyebrow-small">PREMIUM FLOW</div>
-            <h2 id="stepHeading">Dane kontaktowe</h2>
-            <p id="stepLead" class="step-lead">
-              Zostaw podstawowe dane, żeby przejść do wyboru usługi i terminu.
-            </p>
-          </div>
-        </div>
-
-        <div class="progress-rail" id="progressRail"></div>
-
-        <div class="steps-shell">
-          <!-- STEP 1 -->
-          <section class="step active" data-step="1">
-            <div class="step-grid step-grid-single">
-              <div class="form-card glass-inner">
-                <div class="card-head">
-                  <h3>Imię i numer telefonu</h3>
-                  <p>Bez tych danych nie przejdziesz dalej.</p>
-                </div>
-
-                <div class="field-grid">
-                  <label class="field">
-                    <span>Imię</span>
-                    <input
-                      id="nameInput"
-                      type="text"
-                      placeholder="Np. Michał"
-                      autocomplete="name"
-                    />
-                    <small class="field-error" id="nameError"></small>
-                  </label>
-
-                  <label class="field">
-                    <span>Telefon</span>
-                    <input
-                      id="phoneInput"
-                      type="tel"
-                      placeholder="+48 123 456 789"
-                      autocomplete="tel"
-                    />
-                    <small class="field-error" id="phoneError"></small>
-                  </label>
-                </div>
-
-                <div class="step-actions">
-                  <button class="btn btn-primary" id="step1Next" disabled>
-                    Dalej
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- STEP 2 -->
-          <section class="step" data-step="2">
-            <div class="step-grid">
-              <div class="step-main">
-                <div class="section-head">
-                  <h3>Wybór usługi</h3>
-                  <p>Wybierz usługę w premium-service UI z ceną, czasem i rabatem.</p>
-                </div>
-
-                <div class="popular-strip glass-inner">
-                  <div class="popular-strip-copy">
-                    <span class="section-kicker">Popularne usługi</span>
-                    <strong>Najczęściej wybierane wizyty</strong>
-                  </div>
-                  <div class="popular-inline-list" id="popularInlineList"></div>
-                </div>
-
-                <div class="services-categories" id="serviceCategories"></div>
-              </div>
+        <!-- STEP 2 -->
+        <section class="step" data-step="2">
+          <div class="step-content">
+            <div class="card-head">
+              <h2>Wybór usługi</h2>
+              <p>Najpierw wybierz kategorię, potem konkretną usługę.</p>
             </div>
 
-            <div class="step-actions step-actions-between">
-              <button class="btn btn-ghost back-btn">Wstecz</button>
-              <button class="btn btn-primary" id="step2Next" disabled>Dalej</button>
-            </div>
-          </section>
+            <div class="category-list" id="categoryList"></div>
 
-          <!-- STEP 3 -->
-          <section class="step" data-step="3">
-            <div class="section-head">
-              <h3>Wybór barbera</h3>
-              <p>Duże karty, czytelne profile i wyraźny selected state.</p>
-            </div>
-
-            <div class="barbers-grid" id="barbersGrid"></div>
-
-            <div class="step-actions step-actions-between">
-              <button class="btn btn-ghost back-btn">Wstecz</button>
-              <button class="btn btn-primary" id="step3Next" disabled>Dalej</button>
-            </div>
-          </section>
-
-          <!-- STEP 4 -->
-          <section class="step" data-step="4">
-            <div class="section-head">
-              <h3>Wybór daty</h3>
-              <p>Dostępne są tylko przyszłe terminy. Wybierz dzień wizyty.</p>
-            </div>
-
-            <div class="calendar-shell glass-inner">
-              <div class="calendar-head">
+            <div class="services-panel hidden" id="servicesPanel">
+              <div class="services-panel-top">
                 <div>
-                  <span class="section-kicker">Kalendarz</span>
-                  <strong id="calendarMonthLabel">Ładowanie...</strong>
+                  <span class="section-kicker">Kategoria</span>
+                  <h3 id="selectedCategoryTitle">—</h3>
                 </div>
-                <div class="calendar-status" id="calendarStatus">Pobieranie terminów</div>
+                <button class="mini-btn" id="closeCategoryBtn" type="button">Zamknij</button>
               </div>
 
-              <div class="calendar-weekdays">
-                <span>Pn</span>
-                <span>Wt</span>
-                <span>Śr</span>
-                <span>Cz</span>
-                <span>Pt</span>
-                <span>Sb</span>
-                <span>Nd</span>
-              </div>
+              <div class="services-grid" id="servicesGrid"></div>
+            </div>
+          </div>
+        </section>
 
+        <!-- STEP 3 -->
+        <section class="step" data-step="3">
+          <div class="step-content">
+            <div class="card-head">
+              <h2>Wybór barbera</h2>
+              <p>Wybierz osobę, do której chcesz się zapisać.</p>
+            </div>
+
+            <div class="barbers-list" id="barbersList"></div>
+          </div>
+        </section>
+
+        <!-- STEP 4 -->
+        <section class="step" data-step="4">
+          <div class="step-content">
+            <div class="card-head">
+              <h2>Wybór daty</h2>
+              <p>Wybierz dogodny dzień wizyty.</p>
+            </div>
+
+            <div class="calendar-box">
+              <div class="calendar-top">
+                <strong id="monthLabel">Miesiąc</strong>
+                <span id="calendarStatus">Ładowanie...</span>
+              </div>
               <div class="calendar-grid" id="calendarGrid"></div>
-              <div class="field-error calendar-error" id="dateError"></div>
+              <small class="error" id="dateError"></small>
+            </div>
+          </div>
+        </section>
+
+        <!-- STEP 5 -->
+        <section class="step" data-step="5">
+          <div class="step-content">
+            <div class="card-head">
+              <h2>Wybór godziny</h2>
+              <p>Wybierz wolny slot czasowy.</p>
             </div>
 
-            <div class="step-actions step-actions-between">
-              <button class="btn btn-ghost back-btn">Wstecz</button>
-              <button class="btn btn-primary" id="step4Next" disabled>Dalej</button>
-            </div>
-          </section>
-
-          <!-- STEP 5 -->
-          <section class="step" data-step="5">
-            <div class="section-head">
-              <h3>Wybór godziny</h3>
-              <p>Wolne sloty są klikalne. Zajęte godziny pozostają zablokowane.</p>
-            </div>
-
-            <div class="slots-shell glass-inner">
-              <div class="slots-head">
-                <div>
-                  <span class="section-kicker">Godziny</span>
-                  <strong>Wybierz najlepszy slot</strong>
-                </div>
-                <div class="calendar-status" id="slotsStatus">Wybierz datę</div>
+            <div class="slots-box">
+              <div class="calendar-top">
+                <strong>Godziny</strong>
+                <span id="slotsStatus">Wybierz datę</span>
               </div>
-
               <div class="slots-grid" id="slotsGrid"></div>
-              <div class="field-error" id="timeError"></div>
+              <small class="error" id="timeError"></small>
+            </div>
+          </div>
+        </section>
+
+        <!-- STEP 6 -->
+        <section class="step" data-step="6">
+          <div class="step-content">
+            <div class="card-head">
+              <h2>Potwierdzenie danych</h2>
+              <p>Sprawdź wszystko przed zapisaniem wizyty.</p>
             </div>
 
-            <div class="step-actions step-actions-between">
-              <button class="btn btn-ghost back-btn">Wstecz</button>
-              <button class="btn btn-primary" id="step5Next" disabled>Dalej</button>
-            </div>
-          </section>
-
-          <!-- STEP 6 -->
-          <section class="step" data-step="6">
-            <div class="section-head">
-              <h3>Potwierdzenie danych</h3>
-              <p>Sprawdź wszystko przed zapisaniem wizyty do Google Calendar.</p>
-            </div>
-
-            <div class="review-grid">
-              <article class="review-card glass-inner">
+            <div class="summary-list">
+              <div class="summary-row">
                 <span>Imię</span>
                 <strong data-bind="name">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Telefon</span>
                 <strong data-bind="phone">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Usługa</span>
                 <strong data-bind="serviceName">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Barber</span>
                 <strong data-bind="barberName">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Data</span>
                 <strong data-bind="dateText">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Godzina</span>
                 <strong data-bind="time">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Czas trwania</span>
                 <strong data-bind="serviceDuration">—</strong>
-              </article>
-              <article class="review-card glass-inner">
+              </div>
+              <div class="summary-row">
                 <span>Cena</span>
                 <strong data-bind="servicePrice">—</strong>
-              </article>
-            </div>
-
-            <div class="calendar-info-box glass-inner">
-              <p>
-                Po potwierdzeniu wizyty dane są automatycznie zapisywane w
-                <strong>Google Calendar</strong>.
-              </p>
-            </div>
-
-            <div class="step-actions step-actions-between">
-              <button class="btn btn-ghost back-btn">Wstecz</button>
-              <button class="btn btn-primary" id="confirmBookingBtn">
-                Zarezerwuj termin
-              </button>
-            </div>
-
-            <div class="field-error submit-error" id="submitError"></div>
-          </section>
-
-          <!-- STEP 7 -->
-          <section class="step" data-step="7">
-            <div class="success-screen glass-inner">
-              <div class="success-icon">✓</div>
-              <div class="section-head section-head-center">
-                <h3>Rezerwacja została zapisana</h3>
-                <p>
-                  Wizyta została pomyślnie dodana do systemu i zapisana w kalendarzu.
-                </p>
-              </div>
-
-              <div class="success-summary">
-                <div class="success-summary-item">
-                  <span>Usługa</span>
-                  <strong data-bind="serviceName">—</strong>
-                </div>
-                <div class="success-summary-item">
-                  <span>Barber</span>
-                  <strong data-bind="barberName">—</strong>
-                </div>
-                <div class="success-summary-item">
-                  <span>Data</span>
-                  <strong data-bind="dateText">—</strong>
-                </div>
-                <div class="success-summary-item">
-                  <span>Godzina</span>
-                  <strong data-bind="time">—</strong>
-                </div>
-              </div>
-
-              <div class="success-actions">
-                <a
-                  class="btn btn-primary"
-                  id="instagramBtn"
-                  href="https://instagram.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Wróć na Instagram
-                </a>
-                <a
-                  class="btn btn-ghost"
-                  id="mapsBtn"
-                  href="https://maps.google.com/?q=Wrocław"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Jak dojechać?
-                </a>
-                <a
-                  class="btn btn-ghost"
-                  id="contactBtn"
-                  href="tel:+48500000000"
-                >
-                  Skontaktuj się
-                </a>
               </div>
             </div>
-          </section>
-        </div>
-      </section>
-    </section>
 
-    <section class="bottom-sections">
-      <section class="bottom-card glass">
-        <div class="section-head">
-          <span class="section-kicker">Popularne usługi</span>
-          <h3>Najczęściej wybierane</h3>
-          <p>Najbardziej pożądane usługi wyróżnione osobno.</p>
-        </div>
-        <div class="popular-services-grid" id="popularServicesGrid"></div>
-      </section>
-
-      <section class="bottom-grid">
-        <article class="bottom-card glass">
-          <div class="section-head">
-            <span class="section-kicker">Zasady bezpieczeństwa</span>
-            <h3>Clean premium standard</h3>
-          </div>
-          <div class="info-list">
-            <div class="info-item glass-inner">
-              Wszystkie powierzchnie w salonie są dezynfekowane
+            <div class="info-note">
+              Po potwierdzeniu wizyty dane są automatycznie zapisywane w Google Calendar.
             </div>
-            <div class="info-item glass-inner">
-              Dezynfekcja stanowiska po każdej wizycie
+
+            <small class="error" id="submitError"></small>
+          </div>
+        </section>
+
+        <!-- STEP 7 -->
+        <section class="step" data-step="7">
+          <div class="step-content narrow center">
+            <div class="success-icon">✓</div>
+            <div class="card-head center">
+              <h2>Rezerwacja zapisana</h2>
+              <p>Wizyta została pomyślnie dodana do systemu.</p>
+            </div>
+
+            <div class="summary-list">
+              <div class="summary-row">
+                <span>Usługa</span>
+                <strong data-bind="serviceName">—</strong>
+              </div>
+              <div class="summary-row">
+                <span>Barber</span>
+                <strong data-bind="barberName">—</strong>
+              </div>
+              <div class="summary-row">
+                <span>Data</span>
+                <strong data-bind="dateText">—</strong>
+              </div>
+              <div class="summary-row">
+                <span>Godzina</span>
+                <strong data-bind="time">—</strong>
+              </div>
+            </div>
+
+            <div class="success-links">
+              <a class="nav-btn nav-btn-primary" href="https://instagram.com/" target="_blank" rel="noopener">Wróć na Instagram</a>
+              <a class="nav-btn" href="https://maps.google.com/?q=Wrocław" target="_blank" rel="noopener">Jak dojechać?</a>
+              <a class="nav-btn" href="tel:+48500000000">Skontaktuj się</a>
             </div>
           </div>
-        </article>
-
-        <article class="bottom-card glass">
-          <div class="section-head">
-            <span class="section-kicker">Udogodnienia</span>
-            <h3>Komfort wizyty</h3>
-          </div>
-          <div class="info-list">
-            <div class="info-item glass-inner">Internet (Wi-Fi)</div>
-          </div>
-        </article>
+        </section>
       </section>
+
+      <footer class="wizard-nav">
+        <button class="nav-btn" id="backBtn" type="button">Wstecz</button>
+        <button class="nav-btn nav-btn-primary" id="nextBtn" type="button">Dalej</button>
+      </footer>
     </section>
   </main>
 
