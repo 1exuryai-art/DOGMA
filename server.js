@@ -7,21 +7,14 @@ import { google } from "googleapis";
 
 dotenv.config();
 
-const MOCK_MODE = process.env.MOCK_MODE === "true";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
-const FRONTEND_FILE = process.env.FRONTEND_FILE || "Dogma-booking-redesign.html";
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
 
 const requiredEnv = [
   "GOOGLE_CLIENT_ID",
@@ -29,496 +22,222 @@ const requiredEnv = [
   "GOOGLE_REFRESH_TOKEN"
 ];
 
-if (!MOCK_MODE) {
-  const missingEnv = requiredEnv.filter((key) => !process.env[key]);
-  if (missingEnv.length > 0) {
-    console.error("Missing required env variables:", missingEnv.join(", "));
-  }
-}
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET
-);
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(__dirname));
 
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-});
-
-const calendar = google.calendar({
-  version: "v3",
-  auth: oauth2Client
-});
-
-const BARBERS = [
-  {
-    id: "andrzej",
-    name: "Andrzej"
-  },
-  {
-    id: "michal",
-    name: "Michał"
-  },
-  {
-    id: "alex",
-    name: "Alex"
-  }
-];
-
-const SERVICES = [
-  { category: "Strzyżenie, golenie", name: "Strzyżenie włosów", price: 100, duration: 45 },
-  { category: "Strzyżenie, golenie", name: "Strzyżenie włosów długich", price: 120, duration: 60 },
-  { category: "Strzyżenie, golenie", name: "Strzyżenie dziecka krótkie włosy (6-12 lat)", price: 80, duration: 30 },
-  { category: "Strzyżenie, golenie", name: "Strzyżenie dziecka długie włosy (6-12 lat)", price: 95, duration: 60 },
-  { category: "Strzyżenie, golenie", name: "Strzyżenie maszynką (jedna długość)", price: 80, duration: 30 },
-  { category: "Strzyżenie, golenie", name: "Strzyżenie włosów + hair tattoo", price: 110, duration: 60 },
-  { category: "Strzyżenie, golenie", name: "Modelowanie brody", price: 90, duration: 30 },
-  { category: "Strzyżenie, golenie", name: "Strzyżenie brody", price: 80, duration: 30 },
-  { category: "Strzyżenie, golenie", name: "Golenie brzytwą na gładko", price: 90, duration: 60 },
-  { category: "COMBO", name: "Strzyżenie włosów + modelowanie brody", price: 150, duration: 60 },
-  { category: "COMBO", name: "Strzyżenie włosów + brody", price: 140, duration: 60 },
-  { category: "COMBO", name: "Pakiet COMBO premium", price: 160, duration: 60 },
-  { category: "COMBO", name: "Strzyżenie włosów długich + modelowanie brody", price: 170, duration: 75 },
-  { category: "COMBO", name: "Ojciec i syn (dzieci 6-12 lat)", price: 160, duration: 60 },
-  { category: "COMBO", name: "Strzyżenie + odsiwianie włosów i brody", price: 250, duration: 90 },
-  { category: "COMBO", name: "Strzyżenie włosów + odsiwianie", price: 160, duration: 60 },
-  { category: "COMBO", name: "Modelowanie brody + odsiwianie", price: 140, duration: 60 },
-  { category: "Odsiwianie", name: "Odsiwianie włosów", price: 90, duration: 30 },
-  { category: "Odsiwianie", name: "Odsiwianie brody", price: 90, duration: 30 }
-];
-
-const WORKING_HOURS = {
-  start: process.env.WORKING_HOURS_START || "10:00",
-  end: process.env.WORKING_HOURS_END || "18:00",
-  slotStepMinutes: Number(process.env.SLOT_STEP_MINUTES) || 30,
-  daysAhead: Number(process.env.DAYS_AHEAD) || 21
-};
-
-function parseTimeToMinutes(time) {
-  if (!time || !time.includes(":")) return NaN;
-  const [h, m] = time.split(":").map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return NaN;
-  return h * 60 + m;
-}
-
-function minutesToTime(totalMinutes) {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function getWarsawOffset(date) {
-  const month = Number(date.slice(5, 7));
-  return month >= 4 && month <= 10 ? "+02:00" : "+01:00";
-}
-
-function combineDateAndTime(date, time) {
-  return new Date(`${date}T${time}:00${getWarsawOffset(date)}`);
-}
-
-function addMinutes(dateObj, minutes) {
-  return new Date(dateObj.getTime() + minutes * 60000);
-}
-
-function overlaps(startA, endA, startB, endB) {
-  return startA < endB && endA > startB;
-}
-
-function isValidDateString(date) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(date);
-}
-
-function isValidTimeString(time) {
-  return /^\d{2}:\d{2}$/.test(time);
-}
-
-function normalizePrice(price) {
-  if (price === undefined || price === null || price === "") return "";
-  return String(price).trim().replace(/\s*zł\s*$/i, "");
-}
-
-function escapeRegExp(value = "") {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function normalizeString(value = "") {
-  return String(value).trim().toLowerCase();
-}
-
-function findServiceByName(serviceName) {
-  return SERVICES.find(
-    (service) => normalizeString(service.name) === normalizeString(serviceName)
-  ) || null;
-}
-
-function findBarber({ barberId = "", barberName = "" }) {
-  if (barberId) {
-    const byId = BARBERS.find((barber) => barber.id === barberId.trim());
-    if (byId) return byId;
+function parseDuration(durationText) {
+  if (!durationText || typeof durationText !== "string") {
+    throw new Error("Invalid duration format");
   }
 
-  if (barberName) {
-    const byName = BARBERS.find(
-      (barber) => normalizeString(barber.name) === normalizeString(barberName)
-    );
-    if (byName) return byName;
+  const normalized = durationText.trim().toLowerCase();
+
+  let totalMinutes = 0;
+
+  const hourMatch = normalized.match(/(\d+)\s*h/);
+  const minuteMatch = normalized.match(/(\d+)\s*min/);
+
+  if (hourMatch) {
+    totalMinutes += Number(hourMatch[1]) * 60;
   }
 
-  return null;
-}
-
-function getDateStringFromOffset(daysToAdd) {
-  const date = new Date();
-  date.setDate(date.getDate() + daysToAdd);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-async function getBusyEvents(date, barberId = "", barberName = "") {
-  if (MOCK_MODE) {
-    return [];
+  if (minuteMatch) {
+    totalMinutes += Number(minuteMatch[1]);
   }
 
-  const offset = getWarsawOffset(date);
-  const timeMin = new Date(`${date}T00:00:00${offset}`).toISOString();
-  const timeMax = new Date(`${date}T23:59:59${offset}`).toISOString();
+  if (!hourMatch && !minuteMatch && /^\d+$/.test(normalized)) {
+    totalMinutes = Number(normalized);
+  }
 
-  const response = await calendar.events.list({
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+    throw new Error(`Unable to parse duration: ${durationText}`);
+  }
+
+  return totalMinutes;
+}
+
+function buildDateTime(dateStr, timeStr) {
+  if (!dateStr || !timeStr) {
+    throw new Error("Date and time are required");
+  }
+
+  const isoDateTime = `${dateStr}T${timeStr}:00`;
+  const date = new Date(isoDateTime);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid date or time");
+  }
+
+  return date;
+}
+
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function formatCalendarDescription(payload) {
+  return [
+    `Imię: ${payload.name}`,
+    `Telefon: ${payload.phone}`,
+    `Usługa: ${payload.serviceName}`,
+    `Barber: ${payload.barberName}`,
+    `Data: ${payload.date}`,
+    `Godzina: ${payload.time}`,
+    `Czas trwania: ${payload.serviceDuration}`,
+    `Cena: ${payload.servicePrice}`
+  ].join("\n");
+}
+
+function createOAuthClient() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+  });
+
+  return oauth2Client;
+}
+
+async function createEvent(payload) {
+  const oauth2Client = createOAuthClient();
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  const durationMinutes = parseDuration(payload.serviceDuration);
+  const startDate = buildDateTime(payload.date, payload.time);
+  const endDate = addMinutes(startDate, durationMinutes);
+
+  const event = {
+    summary: `${payload.serviceName} — ${payload.name}`,
+    description: formatCalendarDescription(payload),
+    start: {
+      dateTime: startDate.toISOString(),
+      timeZone: TIMEZONE
+    },
+    end: {
+      dateTime: endDate.toISOString(),
+      timeZone: TIMEZONE
+    }
+  };
+
+  const response = await calendar.events.insert({
     calendarId: CALENDAR_ID,
-    timeMin,
-    timeMax,
-    singleEvents: true,
-    orderBy: "startTime"
+    requestBody: event
   });
 
-  const items = response.data.items || [];
-
-  if (!barberId && !barberName) {
-    return items
-      .filter((event) => event.start?.dateTime && event.end?.dateTime)
-      .map((event) => ({
-        start: new Date(event.start.dateTime),
-        end: new Date(event.end.dateTime)
-      }));
-  }
-
-  const barberIdPattern = barberId
-    ? new RegExp(`Barber ID:\\s*${escapeRegExp(barberId)}`, "i")
-    : null;
-
-  const barberNamePattern = barberName
-    ? new RegExp(`Barber:\\s*${escapeRegExp(barberName)}`, "i")
-    : null;
-
-  return items
-    .filter((event) => event.start?.dateTime && event.end?.dateTime)
-    .filter((event) => {
-      const text = `${event.summary || ""}\n${event.description || ""}`;
-      if (barberIdPattern?.test(text)) return true;
-      if (barberNamePattern?.test(text)) return true;
-      return false;
-    })
-    .map((event) => ({
-      start: new Date(event.start.dateTime),
-      end: new Date(event.end.dateTime)
-    }));
+  return response.data;
 }
 
-async function getAvailableSlots(date, duration, barberId = "", barberName = "") {
-  if (MOCK_MODE) {
-    const startMinutes = parseTimeToMinutes(WORKING_HOURS.start);
-    const endMinutes = parseTimeToMinutes(WORKING_HOURS.end);
-    const step = WORKING_HOURS.slotStepMinutes;
-    const availableSlots = [];
+app.get("/api/health", (_req, res) => {
+  const credentialsReady = missingEnv.length === 0;
 
-    for (let current = startMinutes; current + duration <= endMinutes; current += step) {
-      const slotTime = minutesToTime(current);
-      const blockedSlots = ["12:00", "13:30", "15:00"];
-
-      if (!blockedSlots.includes(slotTime)) {
-        availableSlots.push(slotTime);
-      }
-    }
-
-    return availableSlots;
-  }
-
-  const busyEvents = await getBusyEvents(date, barberId, barberName);
-
-  const startMinutes = parseTimeToMinutes(WORKING_HOURS.start);
-  const endMinutes = parseTimeToMinutes(WORKING_HOURS.end);
-  const step = WORKING_HOURS.slotStepMinutes;
-
-  const availableSlots = [];
-
-  for (let current = startMinutes; current + duration <= endMinutes; current += step) {
-    const slotTime = minutesToTime(current);
-    const slotStart = combineDateAndTime(date, slotTime);
-    const slotEnd = addMinutes(slotStart, duration);
-
-    const hasConflict = busyEvents.some((event) =>
-      overlaps(slotStart, slotEnd, event.start, event.end)
-    );
-
-    if (!hasConflict) {
-      availableSlots.push(slotTime);
-    }
-  }
-
-  return availableSlots;
-}
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, FRONTEND_FILE));
-});
-
-app.get("/api/config", (req, res) => {
-  return res.json({
+  res.json({
     ok: true,
-    project: "dogma-barbershop",
+    service: "DOGMA booking backend",
+    credentialsReady,
     timezone: TIMEZONE,
-    workingHours: WORKING_HOURS,
-    barbers: BARBERS,
-    services: SERVICES
+    calendarId: CALENDAR_ID
   });
 });
 
-app.get("/api/barbers", (req, res) => {
-  return res.json({
+app.get("/api/slots/mock", (_req, res) => {
+  const slots = [
+    { time: "09:00", available: true },
+    { time: "09:30", available: false },
+    { time: "10:00", available: true },
+    { time: "10:30", available: true },
+    { time: "11:00", available: false },
+    { time: "11:30", available: true },
+    { time: "12:00", available: true }
+  ];
+
+  res.json({
     ok: true,
-    barbers: BARBERS
+    slots
   });
 });
 
-app.get("/api/services", (req, res) => {
-  return res.json({
-    ok: true,
-    services: SERVICES
-  });
-});
-
-app.get("/api/availability", async (req, res) => {
+app.post("/api/book", async (req, res) => {
   try {
-    const duration = Number(req.query.duration);
-    const barberId = String(req.query.barberId || "").trim();
-    const barberName = String(req.query.barberName || "").trim();
-
-    if (!duration || duration <= 0) {
-      return res.status(400).json({
+    if (missingEnv.length > 0) {
+      return res.status(500).json({
         ok: false,
-        message: "Brak poprawnego duration"
+        error: `Missing env variables: ${missingEnv.join(", ")}`
       });
     }
 
-    const availableDates = [];
-
-    for (let i = 0; i < WORKING_HOURS.daysAhead; i++) {
-      const dateStr = getDateStringFromOffset(i);
-      const slots = await getAvailableSlots(dateStr, duration, barberId, barberName);
-
-      if (slots.length > 0) {
-        availableDates.push(dateStr);
-      }
-    }
-
-    return res.json({
-      ok: true,
-      availableDates
-    });
-  } catch (error) {
-    console.error("Availability error:", error?.response?.data || error.message || error);
-    return res.status(500).json({
-      ok: false,
-      message: "Nie udało się pobrać dostępnych dat"
-    });
-  }
-});
-
-app.get("/api/availability/slots", async (req, res) => {
-  try {
-    const { date } = req.query;
-    const duration = Number(req.query.duration);
-    const barberId = String(req.query.barberId || "").trim();
-    const barberName = String(req.query.barberName || "").trim();
-
-    if (!date || !isValidDateString(date) || !duration || duration <= 0) {
-      return res.status(400).json({
-        ok: false,
-        message: "Brakuje date lub duration"
-      });
-    }
-
-    const availableSlots = await getAvailableSlots(date, duration, barberId, barberName);
-
-    return res.json({
-      ok: true,
-      availableSlots
-    });
-  } catch (error) {
-    console.error("Slots error:", error?.response?.data || error.message || error);
-    return res.status(500).json({
-      ok: false,
-      message: "Nie udało się pobrać wolnych godzin"
-    });
-  }
-});
-
-app.post("/api/bookings", async (req, res) => {
-  if (MOCK_MODE) {
-    console.log("MOCK BOOKING:", req.body);
-
-    return res.status(200).json({
-      ok: true,
-      message: "Mock booking saved",
-      eventId: "mock-event-id",
-      eventLink: null
-    });
-  }
-
-  try {
     const {
       name,
       phone,
-      service,
-      price,
-      duration,
-      barberId,
+      serviceName,
+      serviceDuration,
+      servicePrice,
       barberName,
-      barberMode,
       date,
-      time,
-      notes
-    } = req.body;
+      time
+    } = req.body || {};
 
-    if (!name || !phone || !service || !duration || !date || !time) {
-      return res.status(400).json({
-        ok: false,
-        message: "Brakuje wymaganych danych"
-      });
-    }
-
-    if (!isValidDateString(date) || !isValidTimeString(time)) {
-      return res.status(400).json({
-        ok: false,
-        message: "Niepoprawna data lub godzina"
-      });
-    }
-
-    const numericDuration = Number(duration);
-    if (!numericDuration || numericDuration <= 0) {
-      return res.status(400).json({
-        ok: false,
-        message: "Niepoprawny czas usługi"
-      });
-    }
-
-    const matchedService = findServiceByName(service);
-    if (!matchedService) {
-      return res.status(400).json({
-        ok: false,
-        message: "Niepoprawna usługa"
-      });
-    }
-
-    if (matchedService.duration !== numericDuration) {
-      return res.status(400).json({
-        ok: false,
-        message: "Czas usługi nie zgadza się z konfiguracją"
-      });
-    }
-
-    const expectedPrice = normalizePrice(matchedService.price);
-    const providedPrice = normalizePrice(price);
-
-    if (providedPrice && providedPrice !== expectedPrice) {
-      return res.status(400).json({
-        ok: false,
-        message: "Cena usługi nie zgadza się z konfiguracją"
-      });
-    }
-
-    const matchedBarber = findBarber({ barberId, barberName });
-    const finalBarberId = matchedBarber?.id || "";
-    const finalBarberName = matchedBarber?.name || "Losowy";
-
-    const freshSlots = await getAvailableSlots(
+    const requiredFields = {
+      name,
+      phone,
+      serviceName,
+      serviceDuration,
+      servicePrice,
+      barberName,
       date,
-      numericDuration,
-      finalBarberId,
-      finalBarberName === "Losowy" ? "" : finalBarberName
-    );
-
-    if (!freshSlots.includes(time)) {
-      return res.status(409).json({
-        ok: false,
-        message: "Ten termin został już zajęty. Wybierz inny."
-      });
-    }
-
-    const startDateTime = combineDateAndTime(date, time);
-    const endDateTime = addMinutes(startDateTime, numericDuration);
-
-    if (Number.isNaN(startDateTime.getTime()) || Number.isNaN(endDateTime.getTime())) {
-      return res.status(400).json({
-        ok: false,
-        message: "Nie udało się przetworzyć daty lub godziny"
-      });
-    }
-
-    const cleanedPrice = normalizePrice(matchedService.price);
-
-    const event = {
-      summary: `${matchedService.name} — ${name}`,
-      description: [
-        "Nowa rezerwacja DOGMA",
-        `Imię: ${name}`,
-        `Telefon: ${phone}`,
-        `Usługa: ${matchedService.name}`,
-        cleanedPrice ? `Cena: ${cleanedPrice} zł` : null,
-        `Czas: ${numericDuration} min`,
-        finalBarberName !== "Losowy" ? `Barber: ${finalBarberName}` : "Barber: Losowy",
-        finalBarberId ? `Barber ID: ${finalBarberId}` : null,
-        barberMode ? `Tryb wyboru: ${barberMode}` : null,
-        `Data: ${date}`,
-        `Godzina: ${time}`,
-        notes ? `Uwagi: ${notes}` : null
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      start: {
-        dateTime: startDateTime.toISOString(),
-        timeZone: TIMEZONE
-      },
-      end: {
-        dateTime: endDateTime.toISOString(),
-        timeZone: TIMEZONE
-      }
+      time
     };
 
-    const createdEvent = await calendar.events.insert({
-      calendarId: CALENDAR_ID,
-      requestBody: event
-    });
+    const missingFields = Object.entries(requiredFields)
+      .filter(([, value]) => !value || String(value).trim() === "")
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        error: `Missing required fields: ${missingFields.join(", ")}`
+      });
+    }
+
+    const payload = {
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      serviceName: String(serviceName).trim(),
+      serviceDuration: String(serviceDuration).trim(),
+      servicePrice: String(servicePrice).trim(),
+      barberName: String(barberName).trim(),
+      date: String(date).trim(),
+      time: String(time).trim()
+    };
+
+    const createdEvent = await createEvent(payload);
 
     return res.status(200).json({
       ok: true,
-      message: "Rezerwacja została zapisana",
-      eventId: createdEvent.data.id,
-      eventLink: createdEvent.data.htmlLink
+      message: "Booking saved to Google Calendar",
+      eventId: createdEvent.id,
+      eventLink: createdEvent.htmlLink
     });
   } catch (error) {
-    console.error("Booking error:", error?.response?.data || error.message || error);
+    console.error("Booking error:", error);
+
     return res.status(500).json({
       ok: false,
-      message: "Nie udało się utworzyć rezerwacji"
+      error: error.message || "Internal server error"
     });
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`DOGMA backend started on port ${PORT}`);
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.listen(PORT, () => {
+  console.log(`DOGMA booking app running on port ${PORT}`);
 });
