@@ -360,7 +360,7 @@ async function loadAvailabilityForDate(dateStr) {
   slotsStatus.textContent = "Ładowanie godzin...";
   slotsGrid.innerHTML = "";
 
-  const response = await fetch(`/api/availability?date=${encodeURIComponent(dateStr)}`);
+  const response = await fetch(`${API_BASE}/api/availability?date=${encodeURIComponent(dateStr)}`);
   const data = await response.json().catch(() => null);
 
   if (!response.ok || !data?.ok) {
