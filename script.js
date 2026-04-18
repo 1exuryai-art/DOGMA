@@ -1,5 +1,5 @@
-const TOTAL_STEPS = 8;
 const API_BASE = "https://dogma-production.up.railway.app";
+const TOTAL_STEPS = 8;
 const stepMeta = [
   {
     title: "Dane kontaktowe",
