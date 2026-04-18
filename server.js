@@ -234,7 +234,7 @@ async function createEvent(payload) {
   };
   // ⬇️ 1. проверяем занят ли слот
 const events = await calendar.events.list({
-  calendarId: client.calendar_id,
+  calendarId: CALENDAR_ID,
   timeMin: start.toISOString(),
   timeMax: end.toISOString()
 });
@@ -245,7 +245,7 @@ if (events.data.items.length > 0) {
 
 // ⬇️ 2. если свободно — создаём запись
 const response = await calendar.events.insert({
-  calendarId: client.calendar_id,
+  calendarId: CALENDAR_ID,
   requestBody: event
 });
 
