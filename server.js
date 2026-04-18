@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { google } from "googleapis";
+import axios from "axios";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
+const CONTACT_PHONE = process.env.CONTACT_PHONE || "792897149";
 
 const requiredEnv = [
   "GOOGLE_CLIENT_ID",
@@ -169,6 +171,65 @@ function formatCalendarDescription(payload) {
   ].join("\n");
 }
 
+function normalizeSmsPhone(phone) {
+  const cleaned = String(phone || "").replace(/\s/g, "");
+
+  if (cleaned.startsWith("+")) {
+    return cleaned;
+  }
+
+  if (cleaned.startsWith("48")) {
+    return `+${cleaned}`;
+  }
+
+  return `+48${cleaned}`;
+}
+
+function formatSmsDate(dateStr) {
+  const [year, month, day] = String(dateStr).split("-");
+  if (!year || !month || !day) return dateStr;
+  return `${day}.${month}.${year}`;
+}
+
+async function sendSMS({ phone, message }) {
+  if (!process.env.SMSAPI_TOKEN) {
+    console.warn("SMSAPI_TOKEN is missing. SMS skipped.");
+    return;
+  }
+
+  try {
+    await axios.post(
+      "https://api.smsapi.pl/sms.do",
+      null,
+      {
+        params: {
+          to: normalizeSmsPhone(phone),
+          message,
+          from: process.env.SMS_SENDER || "DOGMA",
+          format: "json"
+        },
+        headers: {
+          Authorization: `Bearer ${process.env.SMSAPI_TOKEN}`
+        }
+      }
+    );
+  } catch (error) {
+    console.error("SMS error:", error.response?.data || error.message);
+  }
+}
+
+function buildBookingSms(payload) {
+  return [
+    "DOGMA BARBERSHOP:",
+    "Twoja rezerwacja została potwierdzona.",
+    `Data: ${formatSmsDate(payload.date)}`,
+    `Godzina: ${payload.time}`,
+    `Usługa: ${payload.serviceName}`,
+    `Barber: ${payload.barberName}`,
+    `Kontakt: ${CONTACT_PHONE}`
+  ].join("\n");
+}
+
 function createOAuthClient() {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -267,7 +328,8 @@ app.get("/api/health", (_req, res) => {
     service: "DOGMA booking backend",
     credentialsReady,
     timezone: TIMEZONE,
-    calendarId: CALENDAR_ID
+    calendarId: CALENDAR_ID,
+    smsEnabled: Boolean(process.env.SMSAPI_TOKEN)
   });
 });
 
@@ -361,6 +423,11 @@ app.post("/api/book", async (req, res) => {
     };
 
     const createdEvent = await createEvent(payload);
+
+    await sendSMS({
+      phone: payload.phone,
+      message: buildBookingSms(payload)
+    });
 
     return res.status(200).json({
       ok: true,
