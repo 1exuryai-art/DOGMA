@@ -327,7 +327,7 @@ function rangesOverlap(startA, endA, startB, endB) {
 
 function generateBaseSlotsForDate(dateStr) {
   const date = new Date(`${dateStr}T00:00:00`);
-  const day = date.getDay(); // 0 = Sunday
+  const day = date.getDay();
   const startHour = 10;
   const endHour = day === 0 ? 18 : 20;
 
@@ -365,13 +365,16 @@ function buildSlotsFromBusy(dateStr, busyIntervals, serviceDurationMinutes) {
 
 async function loadAvailabilityForDate(dateStr) {
   const service = getSelectedService();
+  const barber = getSelectedBarber();
 
-  if (!dateStr || !service) return;
+  if (!dateStr || !service || !barber) return;
 
   slotsStatus.textContent = "Ładowanie godzin...";
   slotsGrid.innerHTML = "";
 
-  const response = await fetch(`${API_BASE}/api/availability?date=${encodeURIComponent(dateStr)}`);
+  const response = await fetch(
+    `${API_BASE}/api/availability?date=${encodeURIComponent(dateStr)}&barberId=${encodeURIComponent(barber.id)}`
+  );
   const data = await response.json().catch(() => null);
 
   if (!response.ok || !data?.ok) {
@@ -411,7 +414,7 @@ function updateBindings() {
   });
 
   document.querySelectorAll('[data-bind="barberName"]').forEach((el) => {
-    el.textContent = barber?.name || (state.barberDecision === "no" ? "Bez wyboru" : "—");
+    el.textContent = barber?.name || "—";
   });
 
   document.querySelectorAll('[data-bind="dateText"]').forEach((el) => {
@@ -806,7 +809,8 @@ async function submitBooking() {
     serviceName: service?.name || "",
     serviceDuration: service?.duration || "",
     servicePrice: service ? formatPrice(service.newPrice) : "",
-    barberName: barber?.name || "Bez wyboru",
+    barberName: barber?.name || "",
+    barberId: barber?.id || "",
     date: state.selectedDate,
     time: state.selectedTime
   };
@@ -858,8 +862,8 @@ function nextStep() {
     if (!state.barberDecision) return;
 
     if (state.barberDecision === "no") {
-      state.selectedBarberId = "";
-      showStep(5);
+      timeError.textContent = "";
+      dateError.textContent = "Wybór barbera jest wymagany";
       return;
     }
 
@@ -898,11 +902,6 @@ function nextStep() {
 
 function prevStep() {
   if (state.step <= 1) return;
-
-  if (state.step === 5 && state.barberDecision === "no") {
-    showStep(3);
-    return;
-  }
 
   showStep(state.step - 1);
 }
@@ -971,7 +970,6 @@ chooseBarberNo.addEventListener("click", () => {
   renderBarberDecision();
   updateBindings();
   updateNav();
-  showStep(5);
 });
 
 barberPrevBtn.addEventListener("click", () => {
