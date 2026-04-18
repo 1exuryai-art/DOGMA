@@ -220,6 +220,24 @@ async function createEvent(payload) {
   const startDate = buildDateTime(payload.date, payload.time);
   const endDate = addMinutes(startDate, durationMinutes);
 
+  const existingEvents = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    timeMin: startDate.toISOString(),
+    timeMax: endDate.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime"
+  });
+
+  const busyEvents = (existingEvents.data.items || []).filter(
+    (item) => item.status !== "cancelled"
+  );
+
+  if (busyEvents.length > 0) {
+    const error = new Error("Ten termin jest już zajęty");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const event = {
     summary: `[WWW] ${payload.serviceName} - ${payload.name}`,
     description: formatCalendarDescription(payload),
@@ -232,24 +250,13 @@ async function createEvent(payload) {
       timeZone: TIMEZONE
     }
   };
-  // ⬇️ 1. проверяем занят ли слот
-const events = await calendar.events.list({
-  calendarId: CALENDAR_ID,
-  timeMin: start.toISOString(),
-  timeMax: end.toISOString()
-});
 
-if (events.data.items.length > 0) {
-  return res.status(400).json({ error: "Ten termin jest już zajęty" });
-}
+  const response = await calendar.events.insert({
+    calendarId: CALENDAR_ID,
+    requestBody: event
+  });
 
-// ⬇️ 2. если свободно — создаём запись
-const response = await calendar.events.insert({
-  calendarId: CALENDAR_ID,
-  requestBody: event
-});
-
-return res.json({ success: true });
+  return response.data;
 }
 
 app.get("/api/health", (_req, res) => {
@@ -353,10 +360,6 @@ app.post("/api/book", async (req, res) => {
       time: String(time).trim()
     };
 
-    const start = buildDateTime(payload.date, payload.time);
-const durationMinutes = parseDuration(payload.serviceDuration);
-const end = addMinutes(start, durationMinutes);
-
     const createdEvent = await createEvent(payload);
 
     return res.status(200).json({
@@ -368,7 +371,7 @@ const end = addMinutes(start, durationMinutes);
   } catch (error) {
     console.error("Booking error:", error);
 
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       ok: false,
       error: error.message || "Internal server error"
     });
