@@ -208,14 +208,6 @@ const barbers = [
   }
 ];
 
-const BASE_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30",
-  "11:00", "11:30", "12:00", "12:30",
-  "13:00", "13:30", "14:00", "14:30",
-  "15:00", "15:30", "16:00", "16:30",
-  "17:00", "17:30", "18:00"
-];
-
 const state = {
   step: 1,
   name: "",
@@ -333,8 +325,26 @@ function rangesOverlap(startA, endA, startB, endB) {
   return startA < endB && endA > startB;
 }
 
-function buildSlotsFromBusy(busyIntervals, serviceDurationMinutes) {
-  return BASE_SLOTS
+function generateBaseSlotsForDate(dateStr) {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const day = date.getDay(); // 0 = Sunday
+  const startHour = 10;
+  const endHour = day === 0 ? 18 : 20;
+
+  const slots = [];
+
+  for (let hour = startHour; hour < endHour; hour += 1) {
+    slots.push(`${String(hour).padStart(2, "0")}:00`);
+    slots.push(`${String(hour).padStart(2, "0")}:30`);
+  }
+
+  return slots;
+}
+
+function buildSlotsFromBusy(dateStr, busyIntervals, serviceDurationMinutes) {
+  const baseSlots = generateBaseSlotsForDate(dateStr);
+
+  return baseSlots
     .map((time) => {
       const slotStart = timeToMinutes(time);
       const slotEnd = slotStart + serviceDurationMinutes;
@@ -369,7 +379,11 @@ async function loadAvailabilityForDate(dateStr) {
   }
 
   const busyIntervals = Array.isArray(data.busy) ? data.busy : [];
-  state.slotsByDate[dateStr] = buildSlotsFromBusy(busyIntervals, service.durationMinutes);
+  state.slotsByDate[dateStr] = buildSlotsFromBusy(
+    dateStr,
+    busyIntervals,
+    service.durationMinutes
+  );
 }
 
 function updateBindings() {
@@ -667,13 +681,12 @@ function renderCalendar() {
       .slice(0, 10);
 
     const isPast = iso < todayString;
-    const isSunday = dateObj.getDay() === 0;
 
     cells.push({
       label: day,
       iso,
       muted: false,
-      available: !isPast && !isSunday,
+      available: !isPast,
       selected: state.selectedDate === iso,
       today: iso === todayString
     });
