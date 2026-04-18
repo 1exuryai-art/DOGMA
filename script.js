@@ -1,5 +1,6 @@
 const API_BASE = "https://dogma-production.up.railway.app";
 const TOTAL_STEPS = 8;
+
 const stepMeta = [
   {
     title: "Dane kontaktowe",
@@ -368,11 +369,7 @@ async function loadAvailabilityForDate(dateStr) {
   }
 
   const busyIntervals = Array.isArray(data.busy) ? data.busy : [];
-
-  state.slotsByDate[dateStr] = buildSlotsFromBusy(
-    busyIntervals,
-    service.durationMinutes
-  );
+  state.slotsByDate[dateStr] = buildSlotsFromBusy(busyIntervals, service.durationMinutes);
 }
 
 function updateBindings() {
@@ -587,13 +584,8 @@ function renderBarberDecision() {
 
   barberSkipBox.classList.toggle("hidden", state.barberDecision !== "no");
 
-  if (chooseBarberYes) {
-    chooseBarberYes.classList.toggle("active", state.barberDecision === "yes");
-  }
-
-  if (chooseBarberNo) {
-    chooseBarberNo.classList.toggle("active", state.barberDecision === "no");
-  }
+  chooseBarberYes?.classList.toggle("active", state.barberDecision === "yes");
+  chooseBarberNo?.classList.toggle("active", state.barberDecision === "no");
 }
 
 function renderBarberSlider() {
@@ -606,33 +598,21 @@ function renderBarberSlider() {
     `;
   }
 
-  if (barberSlideName) {
-    barberSlideName.textContent = barber.name;
-  }
+  barberSlideName.textContent = barber.name;
+  barberSlideDescription.textContent = barber.description;
 
-  if (barberSlideDescription) {
-    barberSlideDescription.textContent = barber.description;
-  }
+  barberSlideLangs.innerHTML = "";
+  barber.languages.forEach((lang) => {
+    const tag = document.createElement("span");
+    tag.textContent = lang;
+    barberSlideLangs.appendChild(tag);
+  });
 
-  if (barberSlideLangs) {
-    barberSlideLangs.innerHTML = "";
-    barber.languages.forEach((lang) => {
-      const tag = document.createElement("span");
-      tag.className = "barber-lang";
-      tag.textContent = lang;
-      barberSlideLangs.appendChild(tag);
-    });
-  }
+  barberCounter.textContent = `${state.barberSlideIndex + 1} / ${barbers.length}`;
 
-  if (barberCounter) {
-    barberCounter.textContent = `${state.barberSlideIndex + 1} / ${barbers.length}`;
-  }
-
-  if (selectBarberBtn) {
-    const isSelected = state.selectedBarberId === barber.id;
-    selectBarberBtn.textContent = isSelected ? "Barber wybrany" : "Wybierz tego barbera";
-    selectBarberBtn.classList.toggle("selected", isSelected);
-  }
+  const isSelected = state.selectedBarberId === barber.id;
+  selectBarberBtn.textContent = isSelected ? "Barber wybrany" : "Wybierz tego barbera";
+  selectBarberBtn.classList.toggle("selected", isSelected);
 }
 
 function getMonthName(monthIndex) {
@@ -645,8 +625,6 @@ function getMonthName(monthIndex) {
 }
 
 function renderCalendar() {
-  if (!calendarGrid) return;
-
   calendarGrid.innerHTML = "";
   dateError.textContent = "";
 
@@ -668,7 +646,6 @@ function renderCalendar() {
 
   const firstDay = new Date(currentYear, currentMonth, 1);
   let firstWeekday = firstDay.getDay();
-
   if (firstWeekday === 0) firstWeekday = 7;
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -759,8 +736,6 @@ function renderCalendar() {
 }
 
 function renderSlots() {
-  if (!slotsGrid) return;
-
   slotsGrid.innerHTML = "";
   timeError.textContent = "";
 
@@ -824,7 +799,7 @@ async function submitBooking() {
   };
 
   try {
-    await fetch(`${API_BASE}/api/book`, {
+    const response = await fetch(`${API_BASE}/api/book`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -918,6 +893,20 @@ function prevStep() {
 
   showStep(state.step - 1);
 }
+
+function callDogma() {
+  const phone = "+48792897149";
+
+  try {
+    window.location.href = `tel:${phone}`;
+  } catch (error) {
+    console.error("Call error:", error);
+    navigator.clipboard?.writeText("792 897 149");
+    alert("Nie udało się otworzyć połączenia. Numer został skopiowany: 792 897 149");
+  }
+}
+
+window.callDogma = callDogma;
 
 nameInput.addEventListener("input", (e) => {
   state.name = e.target.value;
