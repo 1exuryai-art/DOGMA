@@ -353,6 +353,10 @@ app.post("/api/book", async (req, res) => {
       time: String(time).trim()
     };
 
+    const start = buildDateTime(payload.date, payload.time);
+const durationMinutes = parseDuration(payload.serviceDuration);
+const end = addMinutes(start, durationMinutes);
+
     const createdEvent = await createEvent(payload);
 
     return res.status(200).json({
