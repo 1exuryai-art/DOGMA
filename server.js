@@ -15,13 +15,21 @@ const app = express();
 
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
 const CONTACT_PHONE = process.env.CONTACT_PHONE || "792897149";
+
+const BARBER_CALENDARS = {
+  tymur: process.env.GOOGLE_CALENDAR_ID_TYMUR,
+  dima: process.env.GOOGLE_CALENDAR_ID_DIMA,
+  vlad: process.env.GOOGLE_CALENDAR_ID_VLAD
+};
 
 const requiredEnv = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
-  "GOOGLE_REFRESH_TOKEN"
+  "GOOGLE_REFRESH_TOKEN",
+  "GOOGLE_CALENDAR_ID_TYMUR",
+  "GOOGLE_CALENDAR_ID_DIMA",
+  "GOOGLE_CALENDAR_ID_VLAD"
 ];
 
 const missingEnv = requiredEnv.filter((key) => !process.env[key]);
@@ -37,19 +45,13 @@ function parseDuration(durationText) {
   }
 
   const normalized = durationText.trim().toLowerCase();
-
   let totalMinutes = 0;
 
   const hourMatch = normalized.match(/(\d+)\s*h/);
   const minuteMatch = normalized.match(/(\d+)\s*min/);
 
-  if (hourMatch) {
-    totalMinutes += Number(hourMatch[1]) * 60;
-  }
-
-  if (minuteMatch) {
-    totalMinutes += Number(minuteMatch[1]);
-  }
+  if (hourMatch) totalMinutes += Number(hourMatch[1]) * 60;
+  if (minuteMatch) totalMinutes += Number(minuteMatch[1]);
 
   if (!hourMatch && !minuteMatch && /^\d+$/.test(normalized)) {
     totalMinutes = Number(normalized);
@@ -164,6 +166,7 @@ function formatCalendarDescription(payload) {
     `Telefon: ${payload.phone}`,
     `Usługa: ${payload.serviceName}`,
     `Barber: ${payload.barberName}`,
+    `Barber ID: ${payload.barberId}`,
     `Data: ${payload.date}`,
     `Godzina: ${payload.time}`,
     `Czas trwania: ${payload.serviceDuration}`,
@@ -174,13 +177,8 @@ function formatCalendarDescription(payload) {
 function normalizeSmsPhone(phone) {
   const cleaned = String(phone || "").replace(/\s/g, "");
 
-  if (cleaned.startsWith("+")) {
-    return cleaned;
-  }
-
-  if (cleaned.startsWith("48")) {
-    return `+${cleaned}`;
-  }
+  if (cleaned.startsWith("+")) return cleaned;
+  if (cleaned.startsWith("48")) return `+${cleaned}`;
 
   return `+48${cleaned}`;
 }
@@ -243,11 +241,24 @@ function createOAuthClient() {
   return oauth2Client;
 }
 
-async function getBusyIntervals(dateStr) {
+function getCalendarIdForBarber(barberId) {
+  const calendarId = BARBER_CALENDARS[barberId];
+
+  if (!calendarId) {
+    const error = new Error("Nieprawidłowy barber");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return calendarId;
+}
+
+async function getBusyIntervals(dateStr, barberId) {
   if (!dateStr) {
     throw new Error("Date is required");
   }
 
+  const calendarId = getCalendarIdForBarber(barberId);
   const oauth2Client = createOAuthClient();
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -255,7 +266,7 @@ async function getBusyIntervals(dateStr) {
   const dayEnd = getUtcDateFromTimeZoneLocal(dateStr, "23:59", TIMEZONE);
 
   const response = await calendar.events.list({
-    calendarId: CALENDAR_ID,
+    calendarId,
     timeMin: dayStart.toISOString(),
     timeMax: dayEnd.toISOString(),
     singleEvents: true,
@@ -274,6 +285,7 @@ async function getBusyIntervals(dateStr) {
 }
 
 async function createEvent(payload) {
+  const calendarId = getCalendarIdForBarber(payload.barberId);
   const oauth2Client = createOAuthClient();
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -282,7 +294,7 @@ async function createEvent(payload) {
   const endDate = addMinutes(startDate, durationMinutes);
 
   const existingEvents = await calendar.events.list({
-    calendarId: CALENDAR_ID,
+    calendarId,
     timeMin: startDate.toISOString(),
     timeMax: endDate.toISOString(),
     singleEvents: true,
@@ -313,7 +325,7 @@ async function createEvent(payload) {
   };
 
   const response = await calendar.events.insert({
-    calendarId: CALENDAR_ID,
+    calendarId,
     requestBody: event
   });
 
@@ -328,7 +340,11 @@ app.get("/api/health", (_req, res) => {
     service: "DOGMA booking backend",
     credentialsReady,
     timezone: TIMEZONE,
-    calendarId: CALENDAR_ID,
+    calendars: {
+      tymur: Boolean(process.env.GOOGLE_CALENDAR_ID_TYMUR),
+      dima: Boolean(process.env.GOOGLE_CALENDAR_ID_DIMA),
+      vlad: Boolean(process.env.GOOGLE_CALENDAR_ID_VLAD)
+    },
     smsEnabled: Boolean(process.env.SMSAPI_TOKEN)
   });
 });
@@ -343,6 +359,7 @@ app.get("/api/availability", async (req, res) => {
     }
 
     const date = String(req.query.date || "").trim();
+    const barberId = String(req.query.barberId || "").trim();
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({
@@ -351,18 +368,26 @@ app.get("/api/availability", async (req, res) => {
       });
     }
 
-    const busy = await getBusyIntervals(date);
+    if (!barberId) {
+      return res.status(400).json({
+        ok: false,
+        error: "Query param 'barberId' is required"
+      });
+    }
+
+    const busy = await getBusyIntervals(date, barberId);
 
     return res.json({
       ok: true,
       date,
+      barberId,
       timeZone: TIMEZONE,
       busy
     });
   } catch (error) {
     console.error("Availability error:", error);
 
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       ok: false,
       error: error.message || "Internal server error"
     });
@@ -385,6 +410,7 @@ app.post("/api/book", async (req, res) => {
       serviceDuration,
       servicePrice,
       barberName,
+      barberId,
       date,
       time
     } = req.body || {};
@@ -396,6 +422,7 @@ app.post("/api/book", async (req, res) => {
       serviceDuration,
       servicePrice,
       barberName,
+      barberId,
       date,
       time
     };
@@ -418,6 +445,7 @@ app.post("/api/book", async (req, res) => {
       serviceDuration: String(serviceDuration).trim(),
       servicePrice: String(servicePrice).trim(),
       barberName: String(barberName).trim(),
+      barberId: String(barberId).trim(),
       date: String(date).trim(),
       time: String(time).trim()
     };
