@@ -824,7 +824,7 @@ async function submitBooking() {
   };
 
   try {
-    const response = await fetch("/api/book", {
+    await fetch(`${API_BASE}/api/book`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
