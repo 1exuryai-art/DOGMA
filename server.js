@@ -240,11 +240,16 @@ const events = await calendar.events.list({
 });
 
 if (events.data.items.length > 0) {
-  return res.status(400).json({ error: "Slot taken" });
+  return res.status(400).json({ error: "Ten termin jest już zajęty" });
 }
 
 // ⬇️ 2. если свободно — создаём запись
+const response = await calendar.events.insert({
+  calendarId: client.calendar_id,
+  requestBody: event
+});
 
+return res.json({ success: true });
   return response.data;
 }
 
