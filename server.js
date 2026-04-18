@@ -250,7 +250,6 @@ const response = await calendar.events.insert({
 });
 
 return res.json({ success: true });
-  return response.data;
 }
 
 app.get("/api/health", (_req, res) => {
