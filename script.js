@@ -323,10 +323,26 @@ function getWorkingHoursForDate(dateStr) {
   const day = getWeekday(dateStr);
 
   if (day === 0) {
-    return { openHour: 10, closeHour: 18 }; // niedziela
+    return { openHour: 10, closeHour: 18 };
   }
 
-  return { openHour: 10, closeHour: 20 }; // pn-sob
+  return { openHour: 10, closeHour: 20 };
+}
+
+function isDiscountActiveNow() {
+  const now = new Date();
+  const day = now.getDay();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+
+  const isDiscountDay = DISCOUNT_WEEKDAYS.includes(day);
+  const isDiscountTime = minutes >= 10 * 60 && minutes < 16 * 60;
+
+  return isDiscountDay && isDiscountTime;
+}
+
+function getLiveDiscountBadgeMarkup() {
+  if (!isDiscountActiveNow()) return "";
+  return `<div class="service-option-note">Zaoszczędź ${DISCOUNT_PERCENT}%</div>`;
 }
 
 function isDiscountWindow(dateStr, timeStr) {
@@ -591,6 +607,8 @@ function renderServiceAccordion() {
       const card = document.createElement("div");
       card.className = `service-option ${state.selectedServiceId === service.id ? "selected" : ""}`;
 
+      const liveDiscountMarkup = getLiveDiscountBadgeMarkup();
+
       card.innerHTML = `
         <div class="service-option-top">
           <strong class="service-option-title">${service.name}</strong>
@@ -601,9 +619,7 @@ function renderServiceAccordion() {
           <span class="new-price">${formatPrice(service.basePrice)}</span>
         </div>
 
-        <div class="service-option-note">
-          Zniżka ${DISCOUNT_PERCENT}%: pon-czw, 10:00–16:00
-        </div>
+        ${liveDiscountMarkup}
 
         <div class="service-inline-next">
           <button class="nav-btn nav-btn-primary service-next-btn" type="button">
