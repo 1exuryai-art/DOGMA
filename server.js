@@ -16,20 +16,13 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
 const CONTACT_PHONE = process.env.CONTACT_PHONE || "792897149";
-
-const BARBER_CALENDARS = {
-  tymur: process.env.GOOGLE_CALENDAR_ID_TYMUR,
-  dima: process.env.GOOGLE_CALENDAR_ID_DIMA,
-  vlad: process.env.GOOGLE_CALENDAR_ID_VLAD
-};
+const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
 
 const requiredEnv = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
   "GOOGLE_REFRESH_TOKEN",
-  "GOOGLE_CALENDAR_ID_TYMUR",
-  "GOOGLE_CALENDAR_ID_DIMA",
-  "GOOGLE_CALENDAR_ID_VLAD"
+  "GOOGLE_CALENDAR_ID"
 ];
 
 const missingEnv = requiredEnv.filter((key) => !process.env[key]);
@@ -38,6 +31,24 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
+
+const BARBERS = {
+  tymur: {
+    id: "tymur",
+    name: "Tymur",
+    aliases: ["tymur", "тимур"]
+  },
+  dima: {
+    id: "dima",
+    name: "Dima",
+    aliases: ["dima", "дима", "dmitriy", "dmитрий"]
+  },
+  vlad: {
+    id: "vlad",
+    name: "Vlad",
+    aliases: ["vlad", "влад", "volodymyr", "vladimir"]
+  }
+};
 
 function parseDuration(durationText) {
   if (!durationText || typeof durationText !== "string") {
@@ -159,21 +170,6 @@ function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
-function formatCalendarDescription(payload) {
-  return [
-    "Źródło: Rezerwacja przez stronę",
-    `Imię: ${payload.name}`,
-    `Telefon: ${payload.phone}`,
-    `Usługa: ${payload.serviceName}`,
-    `Barber: ${payload.barberName}`,
-    `Barber ID: ${payload.barberId}`,
-    `Data: ${payload.date}`,
-    `Godzina: ${payload.time}`,
-    `Czas trwania: ${payload.serviceDuration}`,
-    `Cena: ${payload.servicePrice}`
-  ].join("\n");
-}
-
 function normalizeSmsPhone(phone) {
   const cleaned = String(phone || "").replace(/\s/g, "");
 
@@ -187,6 +183,80 @@ function formatSmsDate(dateStr) {
   const [year, month, day] = String(dateStr).split("-");
   if (!year || !month || !day) return dateStr;
   return `${day}.${month}.${year}`;
+}
+
+function createOAuthClient() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+  });
+
+  return oauth2Client;
+}
+
+function getCalendarClient() {
+  const oauth2Client = createOAuthClient();
+  return google.calendar({ version: "v3", auth: oauth2Client });
+}
+
+function getBarberConfig(barberId) {
+  const barber = BARBERS[barberId];
+
+  if (!barber) {
+    const error = new Error("Nieprawidłowy barber");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return barber;
+}
+
+function getEventSearchText(event) {
+  return [
+    event.summary || "",
+    event.description || "",
+    event.location || ""
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function detectBarberFromEvent(event) {
+  const haystack = getEventSearchText(event);
+
+  for (const barber of Object.values(BARBERS)) {
+    const matched = barber.aliases.some((alias) => haystack.includes(alias.toLowerCase()));
+    if (matched) return barber.id;
+  }
+
+  return null;
+}
+
+function isEventForBarber(event, barberId) {
+  return detectBarberFromEvent(event) === barberId;
+}
+
+function formatCalendarDescription(payload) {
+  return [
+    "Źródło: Rezerwacja przez stronę",
+    `BarberTag: ${payload.barberId}`,
+    `Barber: ${payload.barberName}`,
+    `Imię: ${payload.name}`,
+    `Telefon: ${payload.phone}`,
+    `Usługa: ${payload.serviceName}`,
+    `Data: ${payload.date}`,
+    `Godzina: ${payload.time}`,
+    `Czas trwania: ${payload.serviceDuration}`,
+    `Cena: ${payload.servicePrice}`
+  ].join("\n");
+}
+
+function buildBookingSummary(payload) {
+  return `[WWW][${payload.barberName}] ${payload.serviceName} - ${payload.name}`;
 }
 
 async function sendSMS({ phone, message }) {
@@ -228,91 +298,72 @@ function buildBookingSms(payload) {
   ].join("\n");
 }
 
-function createOAuthClient() {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
-  );
-
-  oauth2Client.setCredentials({
-    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-  });
-
-  return oauth2Client;
-}
-
-function getCalendarIdForBarber(barberId) {
-  const calendarId = BARBER_CALENDARS[barberId];
-
-  if (!calendarId) {
-    const error = new Error("Nieprawidłowy barber");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  return calendarId;
-}
-
-async function getBusyIntervals(dateStr, barberId) {
+async function getEventsForDay(dateStr) {
   if (!dateStr) {
     throw new Error("Date is required");
   }
 
-  const calendarId = getCalendarIdForBarber(barberId);
-  const oauth2Client = createOAuthClient();
-  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  const calendar = getCalendarClient();
 
   const dayStart = getUtcDateFromTimeZoneLocal(dateStr, "00:00", TIMEZONE);
   const dayEnd = getUtcDateFromTimeZoneLocal(dateStr, "23:59", TIMEZONE);
 
   const response = await calendar.events.list({
-    calendarId,
+    calendarId: GOOGLE_CALENDAR_ID,
     timeMin: dayStart.toISOString(),
     timeMax: dayEnd.toISOString(),
     singleEvents: true,
     orderBy: "startTime"
   });
 
-  const events = response.data.items || [];
+  return response.data.items || [];
+}
+
+async function getBusyIntervals(dateStr, barberId) {
+  const events = await getEventsForDay(dateStr);
 
   return events
     .filter((event) => event.status !== "cancelled")
     .filter((event) => event.start?.dateTime && event.end?.dateTime)
+    .filter((event) => isEventForBarber(event, barberId))
     .map((event) => ({
       start: formatTimeInTimeZone(new Date(event.start.dateTime), TIMEZONE),
-      end: formatTimeInTimeZone(new Date(event.end.dateTime), TIMEZONE)
+      end: formatTimeInTimeZone(new Date(event.end.dateTime), TIMEZONE),
+      summary: event.summary || ""
     }));
 }
 
+function overlaps(startA, endA, startB, endB) {
+  return startA < endB && endA > startB;
+}
+
 async function createEvent(payload) {
-  const calendarId = getCalendarIdForBarber(payload.barberId);
-  const oauth2Client = createOAuthClient();
-  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  const calendar = getCalendarClient();
 
   const durationMinutes = parseDuration(payload.serviceDuration);
   const startDate = buildDateTime(payload.date, payload.time);
   const endDate = addMinutes(startDate, durationMinutes);
 
-  const existingEvents = await calendar.events.list({
-    calendarId,
-    timeMin: startDate.toISOString(),
-    timeMax: endDate.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime"
-  });
+  const existingEvents = await getEventsForDay(payload.date);
 
-  const busyEvents = (existingEvents.data.items || []).filter(
-    (item) => item.status !== "cancelled"
-  );
+  const busyEventsForBarber = existingEvents
+    .filter((item) => item.status !== "cancelled")
+    .filter((item) => item.start?.dateTime && item.end?.dateTime)
+    .filter((item) => isEventForBarber(item, payload.barberId))
+    .filter((item) => {
+      const existingStart = new Date(item.start.dateTime).getTime();
+      const existingEnd = new Date(item.end.dateTime).getTime();
+      return overlaps(startDate.getTime(), endDate.getTime(), existingStart, existingEnd);
+    });
 
-  if (busyEvents.length > 0) {
-    const error = new Error("Ten termin jest już zajęty");
+  if (busyEventsForBarber.length > 0) {
+    const error = new Error("Ten termin jest już zajęty u wybranego barbera");
     error.statusCode = 400;
     throw error;
   }
 
   const event = {
-    summary: `[WWW] ${payload.serviceName} - ${payload.name}`,
+    summary: buildBookingSummary(payload),
     description: formatCalendarDescription(payload),
     start: {
       dateTime: `${payload.date}T${payload.time}:00`,
@@ -325,7 +376,7 @@ async function createEvent(payload) {
   };
 
   const response = await calendar.events.insert({
-    calendarId,
+    calendarId: GOOGLE_CALENDAR_ID,
     requestBody: event
   });
 
@@ -340,12 +391,9 @@ app.get("/api/health", (_req, res) => {
     service: "DOGMA booking backend",
     credentialsReady,
     timezone: TIMEZONE,
-    calendars: {
-      tymur: Boolean(process.env.GOOGLE_CALENDAR_ID_TYMUR),
-      dima: Boolean(process.env.GOOGLE_CALENDAR_ID_DIMA),
-      vlad: Boolean(process.env.GOOGLE_CALENDAR_ID_VLAD)
-    },
-    smsEnabled: Boolean(process.env.SMSAPI_TOKEN)
+    calendarIdConfigured: Boolean(process.env.GOOGLE_CALENDAR_ID),
+    smsEnabled: Boolean(process.env.SMSAPI_TOKEN),
+    mode: "single-calendar-per-owner"
   });
 });
 
@@ -375,6 +423,8 @@ app.get("/api/availability", async (req, res) => {
       });
     }
 
+    getBarberConfig(barberId);
+
     const busy = await getBusyIntervals(date, barberId);
 
     return res.json({
@@ -382,6 +432,7 @@ app.get("/api/availability", async (req, res) => {
       date,
       barberId,
       timeZone: TIMEZONE,
+      calendarId: GOOGLE_CALENDAR_ID,
       busy
     });
   } catch (error) {
@@ -437,6 +488,8 @@ app.post("/api/book", async (req, res) => {
         error: `Missing required fields: ${missingFields.join(", ")}`
       });
     }
+
+    getBarberConfig(String(barberId).trim());
 
     const payload = {
       name: String(name).trim(),
