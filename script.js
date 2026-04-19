@@ -1,6 +1,9 @@
 const API_BASE = "https://dogma-production.up.railway.app";
 const TOTAL_STEPS = 8;
 
+const DISCOUNT_PERCENT = 10;
+const DISCOUNT_WEEKDAYS = [1, 2, 3, 4]; // pn-czw
+
 const stepMeta = [
   {
     title: "Dane kontaktowe",
@@ -20,7 +23,7 @@ const stepMeta = [
   },
   {
     title: "Wybór daty",
-    subtitle: "Wybierz dogodny dzień wizyty."
+    subtitle: "Salon otwarty codziennie. Rabat 10%: pon–czw, 10:00–16:00."
   },
   {
     title: "Wybór godziny",
@@ -69,8 +72,7 @@ const services = [
     id: "haircut",
     category: "popular",
     name: "Strzyżenie / Haircut",
-    oldPrice: 90,
-    newPrice: 81,
+    basePrice: 90,
     duration: "1h",
     durationMinutes: 60
   },
@@ -78,8 +80,7 @@ const services = [
     id: "combo",
     category: "popular",
     name: "Combo (Strzyżenie + Broda)",
-    oldPrice: 140,
-    newPrice: 126,
+    basePrice: 140,
     duration: "1h 30min",
     durationMinutes: 90
   },
@@ -87,8 +88,7 @@ const services = [
     id: "scissors",
     category: "premium",
     name: "Strzyżenie nożyczkami",
-    oldPrice: 130,
-    newPrice: 117,
+    basePrice: 130,
     duration: "1h 30min",
     durationMinutes: 90
   },
@@ -96,8 +96,7 @@ const services = [
     id: "kids",
     category: "premium",
     name: "Fryzjer dla dzieci (4–12 lat)",
-    oldPrice: 80,
-    newPrice: 72,
+    basePrice: 80,
     duration: "1h",
     durationMinutes: 60
   },
@@ -105,8 +104,7 @@ const services = [
     id: "buzz",
     category: "premium",
     name: "Buzz cut / tylko boki",
-    oldPrice: 80,
-    newPrice: 72,
+    basePrice: 80,
     duration: "1h",
     durationMinutes: 60
   },
@@ -114,8 +112,7 @@ const services = [
     id: "beard-zero",
     category: "beard",
     name: "Broda + Golenie głowy na zero",
-    oldPrice: 90,
-    newPrice: 81,
+    basePrice: 90,
     duration: "50min",
     durationMinutes: 50
   },
@@ -123,8 +120,7 @@ const services = [
     id: "beard-trim",
     category: "beard",
     name: "Strzyżenie brody",
-    oldPrice: 70,
-    newPrice: 63,
+    basePrice: 70,
     duration: "40min",
     durationMinutes: 40
   },
@@ -132,8 +128,7 @@ const services = [
     id: "shaving",
     category: "beard",
     name: "Golenie głowy golarką",
-    oldPrice: 50,
-    newPrice: 45,
+    basePrice: 50,
     duration: "30min",
     durationMinutes: 30
   },
@@ -141,8 +136,7 @@ const services = [
     id: "gray-beard",
     category: "gray",
     name: "Strzyżenie brody + Odsiwianie",
-    oldPrice: 150,
-    newPrice: 135,
+    basePrice: 150,
     duration: "1h 30min",
     durationMinutes: 90
   },
@@ -150,8 +144,7 @@ const services = [
     id: "gray-hair",
     category: "gray",
     name: "Strzyżenie + Odsiwianie włosów",
-    oldPrice: 150,
-    newPrice: 135,
+    basePrice: 150,
     duration: "1h 30min",
     durationMinutes: 90
   },
@@ -159,8 +152,7 @@ const services = [
     id: "gray-combo-beard",
     category: "gray",
     name: "Combo: włosy + broda + Odsiwianie brody",
-    oldPrice: 210,
-    newPrice: 189,
+    basePrice: 210,
     duration: "2h",
     durationMinutes: 120
   },
@@ -168,8 +160,7 @@ const services = [
     id: "gray-combo-full",
     category: "gray",
     name: "Combo Odsiwianie: włosy + broda + strzyżenie",
-    oldPrice: 260,
-    newPrice: 234,
+    basePrice: 260,
     duration: "2h",
     durationMinutes: 120
   },
@@ -177,8 +168,7 @@ const services = [
     id: "wax",
     category: "extras",
     name: "Depilacja woskiem",
-    oldPrice: 20,
-    newPrice: 18,
+    basePrice: 20,
     duration: "5min",
     durationMinutes: 5
   }
@@ -269,7 +259,7 @@ const timeError = document.getElementById("timeError");
 const submitError = document.getElementById("submitError");
 
 function formatPrice(value) {
-  return `${value.toFixed(2).replace(".", ",")} zł`;
+  return `${Number(value).toFixed(2).replace(".", ",")} zł`;
 }
 
 function getSelectedService() {
@@ -325,24 +315,78 @@ function rangesOverlap(startA, endA, startB, endB) {
   return startA < endB && endA > startB;
 }
 
-function generateBaseSlotsForDate(dateStr) {
-  const date = new Date(`${dateStr}T00:00:00`);
-  const day = date.getDay();
-  const startHour = 10;
-  const endHour = day === 0 ? 18 : 20;
+function getWeekday(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).getDay();
+}
 
+function getWorkingHoursForDate(dateStr) {
+  const day = getWeekday(dateStr);
+
+  if (day === 0) {
+    return { openHour: 10, closeHour: 18 }; // niedziela
+  }
+
+  return { openHour: 10, closeHour: 20 }; // pn-sob
+}
+
+function isDiscountWindow(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return false;
+
+  const day = getWeekday(dateStr);
+  if (!DISCOUNT_WEEKDAYS.includes(day)) return false;
+
+  const minutes = timeToMinutes(timeStr);
+  return minutes >= 10 * 60 && minutes < 16 * 60;
+}
+
+function getDiscountedPrice(basePrice) {
+  return Number((basePrice * (1 - DISCOUNT_PERCENT / 100)).toFixed(2));
+}
+
+function getServicePriceDetails(service, dateStr = "", timeStr = "") {
+  if (!service) {
+    return {
+      basePrice: 0,
+      finalPrice: 0,
+      hasDiscount: false
+    };
+  }
+
+  const basePrice = service.basePrice;
+  const hasDiscount = isDiscountWindow(dateStr, timeStr);
+  const finalPrice = hasDiscount ? getDiscountedPrice(basePrice) : basePrice;
+
+  return {
+    basePrice,
+    finalPrice,
+    hasDiscount
+  };
+}
+
+function getServicePriceText(service, dateStr = "", timeStr = "") {
+  const details = getServicePriceDetails(service, dateStr, timeStr);
+  return formatPrice(details.finalPrice);
+}
+
+function generateBaseSlotsForDate(dateStr, serviceDurationMinutes = 0) {
+  const { openHour, closeHour } = getWorkingHoursForDate(dateStr);
   const slots = [];
+  const lastStartMinutes = closeHour * 60 - serviceDurationMinutes;
 
-  for (let hour = startHour; hour < endHour; hour += 1) {
-    slots.push(`${String(hour).padStart(2, "0")}:00`);
-    slots.push(`${String(hour).padStart(2, "0")}:30`);
+  for (let minutes = openHour * 60; minutes <= lastStartMinutes; minutes += 30) {
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+
+    slots.push(
+      `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+    );
   }
 
   return slots;
 }
 
 function buildSlotsFromBusy(dateStr, busyIntervals, serviceDurationMinutes) {
-  const baseSlots = generateBaseSlotsForDate(dateStr);
+  const baseSlots = generateBaseSlotsForDate(dateStr, serviceDurationMinutes);
 
   return baseSlots
     .map((time) => {
@@ -392,6 +436,11 @@ async function loadAvailabilityForDate(dateStr) {
 function updateBindings() {
   const service = getSelectedService();
   const barber = getSelectedBarber();
+  const priceDetails = getServicePriceDetails(
+    service,
+    state.selectedDate,
+    state.selectedTime
+  );
 
   document.querySelectorAll('[data-bind="name"]').forEach((el) => {
     el.textContent = state.name || "—";
@@ -406,7 +455,7 @@ function updateBindings() {
   });
 
   document.querySelectorAll('[data-bind="servicePrice"]').forEach((el) => {
-    el.textContent = service ? formatPrice(service.newPrice) : "—";
+    el.textContent = service ? formatPrice(priceDetails.finalPrice) : "—";
   });
 
   document.querySelectorAll('[data-bind="serviceDuration"]').forEach((el) => {
@@ -549,8 +598,11 @@ function renderServiceAccordion() {
         </div>
 
         <div class="service-option-prices">
-          <span class="old-price">${formatPrice(service.oldPrice)}</span>
-          <span class="new-price">${formatPrice(service.newPrice)}</span>
+          <span class="new-price">${formatPrice(service.basePrice)}</span>
+        </div>
+
+        <div class="service-option-note">
+          Zniżka ${DISCOUNT_PERCENT}%: pon-czw, 10:00–16:00
         </div>
 
         <div class="service-inline-next">
@@ -702,7 +754,7 @@ function renderCalendar() {
     });
   }
 
-  calendarStatus.textContent = "Wybierz dzień, aby pobrać wolne godziny";
+  calendarStatus.textContent = "Godziny: pn-sob 10:00–20:00, nd 10:00–18:00";
 
   cells.forEach((cell) => {
     const button = document.createElement("button");
@@ -761,6 +813,7 @@ function renderSlots() {
   }
 
   const slots = state.slotsByDate[state.selectedDate];
+  const { openHour, closeHour } = getWorkingHoursForDate(state.selectedDate);
 
   if (!slots) {
     slotsStatus.textContent = "Wybierz dzień, aby pobrać godziny";
@@ -772,7 +825,7 @@ function renderSlots() {
     return;
   }
 
-  slotsStatus.textContent = `${slots.length} wolnych godzin`;
+  slotsStatus.textContent = `${slots.length} wolnych godzin · ${String(openHour).padStart(2, "0")}:00–${String(closeHour).padStart(2, "0")}:00`;
 
   slots.forEach((slot) => {
     const btn = document.createElement("button");
@@ -808,7 +861,7 @@ async function submitBooking() {
     phone: state.phone,
     serviceName: service?.name || "",
     serviceDuration: service?.duration || "",
-    servicePrice: service ? formatPrice(service.newPrice) : "",
+    servicePrice: getServicePriceText(service, state.selectedDate, state.selectedTime),
     barberName: barber?.name || "",
     barberId: barber?.id || "",
     date: state.selectedDate,
@@ -902,7 +955,6 @@ function nextStep() {
 
 function prevStep() {
   if (state.step <= 1) return;
-
   showStep(state.step - 1);
 }
 
