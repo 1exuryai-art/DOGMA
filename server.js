@@ -16,6 +16,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || "Europe/Warsaw";
 const CONTACT_PHONE = process.env.CONTACT_PHONE || "792897149";
+const OWNER_NOTIFICATION_PHONE = process.env.OWNER_NOTIFICATION_PHONE || "";
 const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
 
 const requiredEnv = [
@@ -240,6 +241,44 @@ function isEventForBarber(event, barberId) {
   return detectBarberFromEvent(event) === barberId;
 }
 
+function getWeekday(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).getDay();
+}
+
+function getWorkingHoursForDate(dateStr) {
+  const day = getWeekday(dateStr);
+
+  if (day === 0) {
+    return { openHour: 10, closeHour: 18 }; // niedziela
+  }
+
+  return { openHour: 10, closeHour: 20 }; // pn-sob
+}
+
+function validateBusinessRules(dateStr, timeStr, durationMinutes) {
+  const { openHour, closeHour } = getWorkingHoursForDate(dateStr);
+  const { hour, minute } = parseTimeParts(timeStr);
+
+  const startMinutes = hour * 60 + minute;
+  const endMinutes = startMinutes + durationMinutes;
+
+  if (startMinutes < openHour * 60 || startMinutes >= closeHour * 60) {
+    const error = new Error(
+      `Dostępne godziny rezerwacji: ${String(openHour).padStart(2, "0")}:00–${String(closeHour).padStart(2, "0")}:00`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (endMinutes > closeHour * 60) {
+    const error = new Error(
+      `Wybrana usługa nie mieści się w godzinach pracy ${String(openHour).padStart(2, "0")}:00–${String(closeHour).padStart(2, "0")}:00`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
 function formatCalendarDescription(payload) {
   return [
     "Źródło: Rezerwacja przez stronę",
@@ -298,6 +337,20 @@ function buildBookingSms(payload) {
   ].join("\n");
 }
 
+function buildOwnerBookingSms(payload) {
+  return [
+    "DOGMA BARBERSHOP",
+    "Nowa rezerwacja:",
+    `Klient: ${payload.name}`,
+    `Telefon: ${payload.phone}`,
+    `Usługa: ${payload.serviceName}`,
+    `Barber: ${payload.barberName}`,
+    `Data: ${formatSmsDate(payload.date)}`,
+    `Godzina: ${payload.time}`,
+    `Cena: ${payload.servicePrice}`
+  ].join("\n");
+}
+
 async function getEventsForDay(dateStr) {
   if (!dateStr) {
     throw new Error("Date is required");
@@ -341,6 +394,8 @@ async function createEvent(payload) {
   const calendar = getCalendarClient();
 
   const durationMinutes = parseDuration(payload.serviceDuration);
+  validateBusinessRules(payload.date, payload.time, durationMinutes);
+
   const startDate = buildDateTime(payload.date, payload.time);
   const endDate = addMinutes(startDate, durationMinutes);
 
@@ -393,6 +448,7 @@ app.get("/api/health", (_req, res) => {
     timezone: TIMEZONE,
     calendarIdConfigured: Boolean(process.env.GOOGLE_CALENDAR_ID),
     smsEnabled: Boolean(process.env.SMSAPI_TOKEN),
+    ownerNotificationEnabled: Boolean(OWNER_NOTIFICATION_PHONE),
     mode: "single-calendar-per-owner"
   });
 });
@@ -433,7 +489,8 @@ app.get("/api/availability", async (req, res) => {
       barberId,
       timeZone: TIMEZONE,
       calendarId: GOOGLE_CALENDAR_ID,
-      busy
+      busy,
+      workingHours: getWorkingHoursForDate(date)
     });
   } catch (error) {
     console.error("Availability error:", error);
@@ -509,6 +566,13 @@ app.post("/api/book", async (req, res) => {
       phone: payload.phone,
       message: buildBookingSms(payload)
     });
+
+    if (OWNER_NOTIFICATION_PHONE) {
+      await sendSMS({
+        phone: OWNER_NOTIFICATION_PHONE,
+        message: buildOwnerBookingSms(payload)
+      });
+    }
 
     return res.status(200).json({
       ok: true,
